@@ -8,6 +8,12 @@ This file records only the changes made by this fork; for upstream changes, see 
 
 ## [Unreleased]
 
+### Security
+- Early adoption of upstream security fix commits `e4478cb`, `879afa3`, `14fe1da`, `31fa181`:
+  - Bump `source-map-js` to 1.2.2 (fixes GHSA-68fv-2mgg-jv7q DoS vulnerability).
+  - Bump `@modelcontextprotocol/client` to 2.2.0 (fixes GHSA-6qxp-vccf-f47h credential leak vulnerability).
+  - Bump `sharp` to 0.35.5 (fixes GHSA-wq5f-xc86-pv6w librsvg dependency vulnerability).
+
 ### Added
 - Fork development scaffold and standards:
   - `AGENTS.md`: Single source of truth for AI coding agents and development conventions.

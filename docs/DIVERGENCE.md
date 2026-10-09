@@ -20,3 +20,7 @@
 | `packages/backend/src/sources/rss.ts` | `feedText` 判定本文要求 `bodyText.length > 280 && !teaser`。 | 移植上游 PR #83：當配置 `summaryIsBody: true` 時，即使短摘要亦放行作為本文。 | 播客或短訊息類 RSS 信源摘要即本文，避免非預期發起無效詳情頁抓取。 | 上游若合併 PR #83 則刪除此列。 |
 | `tests/architecture.test.ts` | 以 `path.relative` 產出路徑比對目錄名稱與規則。 | 移植上游 PR #79：將路徑轉換為 posix 斜線（`split(path.sep).join("/")`）。 | Windows 反斜線會導致模組所屬權與介面讀取判定全部誤報。 | 上游若合併 PR #79 則刪除此列；若修改架構規則保留正規化代碼。 |
 | `tests/collection-tail.test.ts` | 未包含 `initialBackfillOnly` 之後續抓取行為測試。 | 移植上游 PR #85：新增 `initialBackfillOnly 時，下一次普通采集不再補進加入前的舊條目` 案例。 | 確保防歷史舊文灌入機制受測試覆蓋。 | 上游若合併 PR #85 則刪除此列。 |
+| `package.json` | 依賴 `@modelcontextprotocol/client: 2.1.0`。 | 提前採納上游 PR #144（commit `879afa3`），升級至 `2.2.0`。 | 安全修補（GHSA-6qxp-vccf-f47h 憑證外洩漏洞）。 | 上游主線跟進時此分岔自然消除；整樹同步時刪除此列。 |
+| `packages/backend/package.json` | 依賴 `sharp: 0.35.4`。 | 提前採納上游 PR #145（commit `14fe1da`），升級至 `0.35.5`。 | 安全修補（GHSA-wq5f-xc86-pv6w librsvg 依賴漏洞）。 | 上游主線跟進時此分岔自然消除；整樹同步時刪除此列。 |
+| `apps/api/package.json` | 依賴 `sharp: 0.35.4`。 | 提前採納上游依賴升級，升級至 `0.35.5`。 | 安全修補（GHSA-wq5f-xc86-pv6w librsvg 依賴漏洞）。 | 上游主線跟進時此分岔自然消除；整樹同步時刪除此列。 |
+| `package-lock.json` | 依賴舊版 lockfile（包含舊版 sharp、mcp client 及 source-map-js）。 | 提前採納上游 commit `e4478cb`、`879afa3`、`14fe1da`、`31fa181` 之依賴更新。 | 安全修補（GHSA-68fv-2mgg-jv7q、GHSA-6qxp-vccf-f47h、GHSA-wq5f-xc86-pv6w）。 | 上游主線跟進時此分岔自然消除；整樹同步時刪除此列。 |

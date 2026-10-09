@@ -13,6 +13,10 @@
 | `5794327` | [#89](https://github.com/KKKKhazix/AIHOT/pull/89) | 採納。正式站核心同步、公開介面 3.0.0、日週月報流程、主題編年史、模型榜 v17 與手機版重寫均屬上游主線；本 fork 尚無產品客製，整批跟進。 |
 | `4ed5e76` | [#90](https://github.com/KKKKhazix/AIHOT/pull/90) | 採納。移除牆鐘時間造成的評測不穩定。 |
 | `cc66cce` | [#91](https://github.com/KKKKhazix/AIHOT/pull/91) | 採納。移除已無用途的官方價格讀取日期欄位。 |
+| `e4478cb` | [#138](https://github.com/KKKKhazix/AIHOT/pull/138) | 採納。安全修補（GHSA-68fv-2mgg-jv7q）：升級 `source-map-js` 至 1.2.2，防止 event-loop DoS。 |
+| `879afa3` | [#144](https://github.com/KKKKhazix/AIHOT/pull/144) | 採納。安全修補（GHSA-6qxp-vccf-f47h）：升級 `@modelcontextprotocol/client` 至 2.2.0，修復憑證外洩風險。 |
+| `14fe1da` | [#145](https://github.com/KKKKhazix/AIHOT/pull/145) | 採納。安全修補（GHSA-wq5f-xc86-pv6w）：升級 `sharp` 至 0.35.5，修復 librsvg 依賴漏洞。 |
+| `31fa181` | - | 採納。保持 sharp 安裝清單精確版本約束（0.35.5）。 |
 
 ## Open pull requests
 

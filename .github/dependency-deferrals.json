@@ -3,18 +3,6 @@
     "actions/setup-node": {
       "deferredLatest": "7.1.0",
       "reason": "check.yml uses upstream v7.0.0; deferred to avoid divergence on upstream-held workflow; review on 2026-10-15"
-    },
-    "sharp": {
-      "deferredLatest": "0.35.5",
-      "reason": "上游已於 2026-10-06 commit 14fe1da/31fa181 升級，保留至下一次整樹審查上游時一併採用，避免提前分岔；重審日期：2026-10-15"
-    },
-    "@modelcontextprotocol/client": {
-      "deferredLatest": "2.2.0",
-      "reason": "上游已於 2026-10-06 commit 879afa3 升級，保留至下一次整樹審查上游時一併採用，避免提前分岔；重審日期：2026-10-15"
-    },
-    "source-map-js": {
-      "deferredLatest": "1.2.2",
-      "reason": "上游已於 2026-10-06 commit e4478cb 升級，保留至下一次整樹審查上游時一併採用，避免提前分岔；重審日期：2026-10-15"
     }
   }
 }

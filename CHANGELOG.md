@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+### Security
+- 提前採納上游安全修補 commit `e4478cb`、`879afa3`、`14fe1da`、`31fa181`：
+  - 升級 `source-map-js` 至 1.2.2（修復 GHSA-68fv-2mgg-jv7q DoS 漏洞）。
+  - 升級 `@modelcontextprotocol/client` 至 2.2.0（修復 GHSA-6qxp-vccf-f47h 憑證外洩漏洞）。
+  - 升級 `sharp` 至 0.35.5（修復 GHSA-wq5f-xc86-pv6w librsvg 依賴漏洞）。
+
 ### Added
 - 初始化 Fork 鷹架結構與開發標準：
   - `AGENTS.md`：AI Coding Agent 單一真相源與個人協作約定。
