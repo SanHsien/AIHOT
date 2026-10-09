@@ -1,3 +1,8 @@
 {
-  "deferrals": {}
+  "deferrals": {
+    "actions/setup-node": {
+      "deferredLatest": "7.1.0",
+      "reason": "check.yml uses upstream v7.0.0; deferred to avoid divergence on upstream-held workflow"
+    }
+  }
 }
