@@ -1,0 +1,32 @@
+{
+  "repo": "https://github.com/KKKKhazix/AIHOT.git",
+  "branch": "main",
+  "branches": [
+    "main"
+  ],
+  "reviewed_through": "cc66cceb1dc7a0bc147e942e49ff94c9cee418c6",
+  "reviewed_date": "2026-10-03",
+  "reviewed_pr_through": 91,
+  "reviewed_issue_through": 88,
+  "latest_tag": null,
+  "latest_release": null,
+  "reviewed_open_prs": {
+    "73": "bf5cfbaa58e2bc26076a80fffb2754be9c88aabc",
+    "74": "befdf3dcf8b710f1f3365e9793ca5a0c129a2f23",
+    "76": "01a0deb01060dd0c5e0d6a2bc0732a99905c017d",
+    "78": "d7c3d1a923da43be56639327644c26c7cebced93",
+    "79": "79f0d4fe6a98a9df10c71e694477a069eea0419d",
+    "80": "b14c9428325a489553d1656a15922542403f083f",
+    "81": "9d6e61757d6b1179a034f8285c3e8da26b254190",
+    "83": "65a0893edeef4c3cebf89aabda702dcf10da5faa",
+    "84": "0ade519eafdc095d0f1916bb3fd687e92f519ccd",
+    "85": "cf216cf9a344d32cb2095a7e57cce9439ed291ce"
+  },
+  "reviewed_open_issues": [
+    67,
+    77,
+    86,
+    88
+  ],
+  "notes": "Upstream main commits through cc66cce and tickets through PR #91 / issue #88 were reviewed on 2026-10-03. Decisions are recorded in docs/UPSTREAM.md. Review again only when main, a tracked open PR head SHA, issue state/content, branch inventory, tags, or releases change."
+}
