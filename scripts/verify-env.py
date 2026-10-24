@@ -70,7 +70,6 @@ def check_git() -> bool:
 def check_scaffold_files() -> bool:
     required = [
         "AGENTS.md",
-        "CLAUDE.md",
         "FORK.md",
         "NOTICE.md",
         "SKILL.md",

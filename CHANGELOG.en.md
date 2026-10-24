@@ -8,6 +8,9 @@ This file records only the changes made by this fork; for upstream changes, see 
 
 ## [Unreleased]
 
+### Changed
+- Removed `CLAUDE.md` and merged its notes into `AGENTS.md`; every agent now reads `AGENTS.md` only.
+
 ### Security
 - Early adoption of upstream security fix commits `e4478cb`, `879afa3`, `14fe1da`, `31fa181`:
   - Bump `source-map-js` to 1.2.2 (fixes GHSA-68fv-2mgg-jv7q DoS vulnerability).

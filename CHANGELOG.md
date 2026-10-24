@@ -5,6 +5,9 @@
 
 ## [Unreleased]
 
+### Changed
+- 刪除 `CLAUDE.md`，補充內容併入 `AGENTS.md`；所有 agent 只讀 `AGENTS.md`。
+
 ### Security
 - 提前採納上游安全修補 commit `e4478cb`、`879afa3`、`14fe1da`、`31fa181`：
   - 升級 `source-map-js` 至 1.2.2（修復 GHSA-68fv-2mgg-jv7q DoS 漏洞）。

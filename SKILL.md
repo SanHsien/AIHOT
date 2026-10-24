@@ -26,7 +26,6 @@ description: 維護 SanHsien/AIHOT：自動化行業熱點彙整與日報系統�
 
 - `README.md` / `README.en.md`：專案首頁（繁中 / 上游鏡像）。
 - `AGENTS.md`：AI Coding Agent 單一真相源與開發約定。
-- `CLAUDE.md`：Claude Code 專屬薄補丁。
 - `FORK.md`：Fork 維護宗旨與上游追蹤原則。
 - `NOTICE.md`：授權、品牌限制與第三方素材致謝。
 - `apps/web/`：React Router SSR 前端頁面與元件。
