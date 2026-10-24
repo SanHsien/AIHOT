@@ -25,4 +25,4 @@
 
 ## AI 協作聲明
 
-本 Fork 之維護、繁體中文在地化與開發鷹架由 SanHsien 主持，並由 AI 助理（小克 / Claude Code / Codex）輔助建置。所有重大決策與驗收均經過實際執行驗證。
+本 Fork 之維護、繁體中文在地化與開發鷹架由 SanHsien 主持，並由 AI 助理（Claude Code / Codex）輔助建置。所有重大決策與驗收均經過實際執行驗證。

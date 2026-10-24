@@ -8,7 +8,7 @@
 
 - 上游：`KKKKhazix/AIHOT`；本 fork：`SanHsien/AIHOT`。
 - 完成並通過驗證後直接 commit、push `origin/main`；不開長期分支或 fork 內 PR。
-- 未經主人在當次對話明確同意，不得對上游開 PR、Issue、發布 Release 或 push。
+- 未經維護者在當次對話明確同意，不得對上游開 PR、Issue、發布 Release 或 push。
 - 修改上游持有檔案時，同步更新 [`docs/DIVERGENCE.md`](docs/DIVERGENCE.md)，並執行 `python tools/check_divergence.py`。
 - 上游 commit、PR、issue、branch、tag、release 的審查結果記在 [`docs/UPSTREAM.md`](docs/UPSTREAM.md) 與 `tools/upstream_baseline.json`，避免重複判斷。
 - 修復 `REVIEW.md` 列出的缺陷時，回註修復 commit 與日期。
