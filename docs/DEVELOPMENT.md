@@ -116,4 +116,4 @@ DATABASE_URL=postgres://127.0.0.1:5432/aihot_test npm test
 3. **換行符號管理**：
    - 本倉庫根目錄已設定 `.gitattributes`（`* text=auto eol=lf`），請確保編輯器在 Windows 上使用 LF 換行。
 4. **品牌替換提醒**：
-   - 「AIHOT」名稱及 Logo 僅供官方參考，自訂站點請務必至 `industry/site.ts` 與 `industry/brand/` 替換為自有站名與圖標。
+   - 「AIHOT」名稱及 Logo 僅供官方參考，自訂站點請務必至 `site/site.ts` 與 `site/brand/` 替換為自有站名與圖標。
