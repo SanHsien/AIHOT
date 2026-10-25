@@ -117,3 +117,7 @@ DATABASE_URL=postgres://127.0.0.1:5432/aihot_test npm test
    - 本倉庫根目錄已設定 `.gitattributes`（`* text=auto eol=lf`），請確保編輯器在 Windows 上使用 LF 換行。
 4. **品牌替換提醒**：
    - 「AIHOT」名稱及 Logo 僅供官方參考，自訂站點請務必至 `site/site.ts` 與 `site/brand/` 替換為自有站名與圖標。
+
+## 網頁測試需要瀏覽器
+
+上游 4.0.0 之後 `apps/web/tests/` 含 Playwright 瀏覽器測試（Chromium、WebKit）。本機先執行 `npx playwright install chromium webkit`，否則 `tools/dev_check.*` 的網頁測試步驟會卡住；CI 由上游持有的 `check.yml` 完整執行，`fork-check.yml` 不再重複。
