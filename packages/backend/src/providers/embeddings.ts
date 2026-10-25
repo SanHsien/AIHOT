@@ -5,8 +5,7 @@ import { config, credential } from "../config.ts";
 import { sql } from "../db.ts";
 import { sha256 } from "../lib/ids.ts";
 import { z } from "zod";
-import { ModelOutputError } from "./llm.ts";
-import { completeReceipt, paidRequest, ProviderRejectedError, rejectReceivedResponse } from "./receipts.ts";
+import { assertAccepted, completeReceipt, ModelOutputError, ModelUnavailableError, paidRequest, rejectReceivedResponse } from "./receipts.ts";
 
 const own = !!credential("models", "EMBEDDING_API_KEY");
 export const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL || (own ? "text-embedding-3-small" : "text-embedding-v4");
@@ -22,10 +21,10 @@ export function embeddingsAvailable(): boolean {
 }
 
 async function embedBatch(texts: string[], subject: string): Promise<{ vectors: number[][]; receiptId: number }> {
-  if (!config.modelCallsEnabled) throw new Error("Model calls are disabled (MODEL_CALLS_ENABLED=false)");
+  if (!config.modelCallsEnabled) throw new ModelUnavailableError("Model calls are disabled (MODEL_CALLS_ENABLED=false)");
   const base = own ? credential("models", "EMBEDDING_BASE_URL") ?? "https://api.openai.com/v1" : credential("models", "DASHSCOPE_BASE_URL") ?? "https://dashscope.aliyuncs.com/compatible-mode/v1";
   const key = own ? credential("models", "EMBEDDING_API_KEY") : credential("models", "DASHSCOPE_API_KEY");
-  if (!key) throw new Error("EMBEDDING_API_KEY (or DASHSCOPE_API_KEY) missing");
+  if (!key) throw new ModelUnavailableError("EMBEDDING_API_KEY (or DASHSCOPE_API_KEY) missing");
   const receipt = await paidRequest(
     { service: SERVICE, model: EMBEDDING_MODEL, purpose: "embedding", subject, identity: { model: EMBEDDING_MODEL, dims: EMBEDDING_DIMS, texts: texts.map((t) => sha256(t)) }, requestSummary: { count: texts.length } },
     async () => {
@@ -36,7 +35,7 @@ async function embedBatch(texts: string[], subject: string): Promise<{ vectors: 
         signal: AbortSignal.timeout(60_000),
       });
       const text = await res.text();
-      if (!res.ok) throw new ProviderRejectedError(`embeddings HTTP ${res.status}: ${text.slice(0, 200)}`, res.status, res.status === 429 || res.status >= 500);
+      assertAccepted(SERVICE, res.status, text);
       let response: unknown;
       try { response = JSON.parse(text); }
       catch { response = { unparsable: text.slice(0, 20000) }; }
@@ -58,18 +57,32 @@ async function embedBatch(texts: string[], subject: string): Promise<{ vectors: 
   }
 }
 
+// array_send avoids formatting each float as decimal on the database. Its one-dimensional real[]
+// payload has a 20-byte header, then a four-byte length and a float4 per coordinate. Keep shapes
+// rejected by the text-array reader invalid so the usual replacement path still handles them.
+function storedVector(data: Buffer): number[] | null {
+  if (data.readInt32BE(0) !== 1 || data.readInt32BE(16) !== 1) return null;
+  const vector = new Array<number>(data.readInt32BE(12));
+  for (let i = 0; i < vector.length; i++) {
+    if (data.readInt32BE(20 + i * 8) === -1) return null;
+    vector[i] = data.readFloatBE(24 + i * 8);
+  }
+  return vector;
+}
+
 /** Returns the stored embeddings of report texts, computing and storing the missing ones. */
 export async function ensureEmbeddings(items: Array<{ id: string; text: string }>): Promise<Map<string, number[]>> {
   const out = new Map<string, number[]>();
   if (items.length === 0) return out;
   const hashes = new Map(items.map((item) => [item.id, sha256(item.text)]));
-  const rows = await sql<{ ref_id: string; text_hash: string; vector: number[] }[]>`
-    SELECT ref_id, text_hash, vector FROM embeddings WHERE kind = 'article' AND model = ${EMBEDDING_MODEL} AND ref_id IN ${sql(items.map((i) => i.id))}`;
+  const rows = await sql<{ ref_id: string; text_hash: string; vector: Buffer }[]>`
+    SELECT ref_id, text_hash, array_send(vector) AS vector FROM embeddings WHERE kind = 'article' AND model = ${EMBEDDING_MODEL} AND ref_id IN ${sql(items.map((i) => i.id))}`;
   const have = new Map(rows.map((r) => [r.ref_id, r]));
   const missing = items.filter((i) => {
     const h = have.get(i.id);
-    if (h && h.text_hash === hashes.get(i.id) && VECTOR.safeParse(h.vector).success) {
-      out.set(i.id, h.vector);
+    const vector = h && h.text_hash === hashes.get(i.id) ? storedVector(h.vector) : null;
+    if (vector && VECTOR.safeParse(vector).success) {
+      out.set(i.id, vector);
       return false;
     }
     return true;

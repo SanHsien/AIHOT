@@ -1,7 +1,10 @@
+import { describePublicationTime } from "../sources/dates.ts";
 // The writing side of the analysis: the prefilter's and the content understanding's inputs, the
 // title/summary prompts for everything else, the output parsing and the deterministic guards. The
 // wording lives in the industry pack (industry/prompts/); a failed guard falls back without a repair call.
 import { IDENTITY_CONTEXT_ALIASES, IDENTITY_LEXICON, PUBLISHER_DOMAINS } from "@aihot/industry/taxonomy";
+import { stripTagMarkup, isChineseText as looksZh } from "../lib/text.ts";
+export { isChineseText as looksZh } from "../lib/text.ts";
 import { onlyXArticleLink } from "../sources/x.ts";
 import type { AnalyzeInputArticle } from "./input.ts";
 import { promptText } from "./prompts.ts";
@@ -20,13 +23,6 @@ export function clampText(s: string, maxChars: number): string {
   return codepoints.length <= maxChars ? s : codepoints.slice(0, maxChars).join("") + "…";
 }
 
-export function looksZh(s: string): boolean {
-  if (!/[一-鿿]/.test(s)) return false;
-  if (/[぀-ヿ]/.test(s)) return false; // Japanese kana
-  if (/[가-힯]/.test(s)) return false; // Hangul
-  return true;
-}
-
 /** Short tweet: under 100 characters of Chinese, under 500 of other text. */
 export function isShortTweet(text: string): boolean {
   if (!text) return false;
@@ -37,9 +33,7 @@ export function isShortTweet(text: string): boolean {
 /** HTML, URLs (whose /2025/ paths models took for years) and entities out of article text. */
 export function cleanArticleTextForLLM(s: string): string {
   if (!s) return "";
-  return s
-    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
+  return stripTagMarkup(s.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, " "))
     .replace(/https?:\/\/\S+/gi, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -91,7 +85,7 @@ export function renderContext(a: AnalyzeInputArticle, opts: { annotateQuoted?: b
   const name = a.xPost?.authorName || a.author;
   const handle = a.xPost?.handle;
   if (name || handle) lines.push(`【作者】${[name, handle ? `@${handle}` : null].filter(Boolean).join(" · ")}`);
-  if (a.publishedAt) lines.push(`【发布时间】${a.publishedAt.toISOString()}`);
+  if (a.publishedAt) lines.push(`【发布时间】${describePublicationTime(a.publishedAt, a.publicationTime)}`);
   const media = (a.xPost?.media ?? a.media ?? []) as Array<{ kind?: string }>;
   const images = media.filter((m) => m.kind === "image").length;
   const videos = media.filter((m) => m.kind === "video").length;
@@ -120,7 +114,7 @@ export function renderContext(a: AnalyzeInputArticle, opts: { annotateQuoted?: b
 /** The prefilter's user message: the context as a JSON string (the prompt was tuned on this form). */
 export const prefilterUser = (a: AnalyzeInputArticle) => JSON.stringify(renderContext(a));
 
-/** Nothing to judge beyond the title: the prefilter's BLOCK then means "wait for material". */
+/** No text beyond the title: no body, feed excerpt, post or quoted text. */
 export function missingEvidence(a: AnalyzeInputArticle): boolean {
   return !a.bodyText?.trim() && !a.excerpt?.trim() && !String(a.xPost?.text ?? "").trim() && !String(a.xPost?.quoted?.text ?? "").trim();
 }
@@ -166,6 +160,7 @@ export interface TranslateInput {
   quotedText?: string;
   quotedAuthor?: string;
   publishedAt?: Date;
+  publicationTime?: string | null;
 }
 
 export function translateInputOf(a: AnalyzeInputArticle): TranslateInput {
@@ -182,6 +177,7 @@ export function translateInputOf(a: AnalyzeInputArticle): TranslateInput {
     quotedText: a.xPost?.quoted?.text ? String(a.xPost.quoted.text) : undefined,
     quotedAuthor: a.xPost?.quoted?.handle ? String(a.xPost.quoted.handle) : undefined,
     publishedAt: a.publishedAt ?? undefined,
+    publicationTime: a.publicationTime,
   };
 }
 
@@ -242,16 +238,16 @@ export function compactAnswerFirstSummary(summary: string, maxChars = 190): stri
     result += sentence;
     if (result.length >= 80) break;
   }
-  if (result.length >= 50) return result.trim();
-  // The first sentence alone is too long: cut at a clause boundary, never inside a name or number.
-  const clauses = text.match(/[^，；：、,;:]+[，；：、,;:]?/gu) ?? [text];
-  result = "";
+  // Whole sentences, even a short one, read better than half of the next.
+  if (result) return result.trim();
+  // The first sentence alone is too long: cut at a clause boundary, never inside a name, number or enumeration.
+  const clauses = text.match(/[^，；,;]+[，；,;]?/gu) ?? [text];
   for (const clause of clauses) {
     if ((result + clause).length + 1 > maxChars) break;
     result += clause;
     if (result.length >= 80) break;
   }
-  return result.length >= 50 ? `${result.replace(/[，；：、,;:]$/u, "")}。` : text;
+  return result.length >= 50 ? `${result.replace(/[，；,;]$/u, "")}。` : text;
 }
 
 function answerFirstSummaryLengthOk(summary: string, input: TranslateInput): boolean {
@@ -282,7 +278,7 @@ function anchorDate(d: Date | undefined): string {
 
 export function buildArticlePrompt(input: TranslateInput): string {
   return promptText("summarize-article", {
-    publishedDate: anchorDate(input.publishedAt),
+    publishedDate: input.publicationTime?.length === 10 ? input.publicationTime : anchorDate(input.publishedAt),
     today: anchorDate(new Date()),
     sourceName: sourceName(input.sourceName),
     identity: identityPrompt(input),

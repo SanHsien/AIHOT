@@ -1,4 +1,14 @@
 // Publication rules. Each rule is defined once here and used by every exit.
+import { serverModules } from '../modules.ts';
+
+/** Presentation exceptions never alter scoring, selection eligibility or fact membership. */
+export function independentSelectedSources(): string[] {
+  return [...new Set(serverModules().flatMap(m => m.independentSelectedSources ?? []))];
+}
+
+export function isIndependentSelectedSource(sourceId: string): boolean {
+  return independentSelectedSources().includes(sourceId);
+}
 
 export interface SourceFacts {
   id: string;
@@ -15,14 +25,15 @@ export function channelOf(sourceKind: string, hasXPost: boolean): "x" | "news" {
   return sourceKind === "x_search" || hasXPost ? "x" : "news";
 }
 
-/** Public pool (/all): editorial sources, AI relevant, with a Chinese title and summary. */
+/** Public pool (/all): editorial sources, AI relevant, with usable copy or an original post. */
 export function isPoolEligible(input: {
   participationMode: string;
   relevance: string | null;
   title: string | null;
   summary: string | null;
+  originalPost?: boolean;
 }): boolean {
-  return input.participationMode === "editorial" && input.relevance === "pass" && !!input.title && !!input.summary;
+  return input.participationMode === "editorial" && input.relevance === "pass" && !!input.title && (!!input.summary || input.originalPost === true);
 }
 
 /**
@@ -56,8 +67,8 @@ export function mayRedistribute(source: SourceFacts, bodyMode: "full" | "summary
  * Detail pages are noindex by default. Selected items are indexed automatically; an editor
  * can mark any other public page for indexing, or exclude a page, which then stays out.
  */
-export function isIndexable(p: { visibility: string; hasSummary: boolean; selected: boolean; seoIndexedAt: Date | null; seoExcludedAt: Date | null }): boolean {
-  return p.visibility === "public" && p.hasSummary && p.seoExcludedAt === null && (p.selected || p.seoIndexedAt !== null);
+export function isIndexable(p: { visibility: string; sourceMode: string; hasSummary: boolean; selected: boolean; seoIndexedAt: Date | null; seoExcludedAt: Date | null }): boolean {
+  return p.visibility === "public" && hasItemPage(p) && p.hasSummary && p.seoExcludedAt === null && (p.selected || p.seoIndexedAt !== null);
 }
 
 /** Display tags exclude internal entity markers. */

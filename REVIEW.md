@@ -1,6 +1,6 @@
 # 專案覆核紀錄（REVIEW.md）
 
-> 覆核日期：2026-10-04
+> 覆核日期：2026-10-25（上游同步至 `ce83484`）
 > 覆核範圍：`SanHsien/AIHOT` 上游主線同步（公開介面 3.0.0）、分支清理、六軸審查紀錄與候選 PR 移植（#79、#83、#85）
 > 維持方式：latest-only（只留最新覆核現狀）
 
@@ -12,9 +12,9 @@
 - **分支與版本衛生**：本 fork 與上游遠端均只保留 `main` 分支（多餘遠端分支 `origin/codex/article-body-fidelity-20261002` 已授權刪除）；上游與本 fork 目前均無任何 tag 或 release，無舊版本殘留。
 - **上游同步與候選移植**：
   - 完整合併上游 main 3 筆新提交至 `cc66cce`（公開介面 3.0.0、正式站同步與評測修正）。
-  - 移植 PR #79：修復 `tests/architecture.test.ts` 在 Windows 下反斜線導致架構規則假性報錯的缺陷。
-  - 移植 PR #83：新增 `packages/backend/src/sources/rss.ts` 的 `summaryIsBody: true` 支援與測試。
-  - 移植 PR #85：新增 `_aihot.initialBackfillOnly`，徹底解決長歷史 RSS 第二次抓取過量灌入舊文的成本問題（修復 Issue #86）。
+  - （2026-10-25 上游已自行解決，移植撤回）移植 PR #79：修復 `tests/architecture.test.ts` 在 Windows 下反斜線導致架構規則假性報錯的缺陷。
+  - （2026-10-25 上游已含 `summaryIsBody`，rss.ts 採上游版）移植 PR #83：新增 `packages/backend/src/sources/rss.ts` 的 `summaryIsBody: true` 支援與測試。
+  - （2026-10-25 上游 `50b562b` 內建等效規則，開關撤回）移植 PR #85：新增 `_aihot.initialBackfillOnly`，徹底解決長歷史 RSS 第二次抓取過量灌入舊文的成本問題（修復 Issue #86）。
   - 判定 PR #80 因上游 commit `5794327` 已移除 `deleteAllJobs` 而不需移植。
 - **上游審查機制**：建立 [`docs/UPSTREAM.md`](docs/UPSTREAM.md) 與 [`tools/upstream_baseline.json`](tools/upstream_baseline.json) 六軸水位（commit `cc66cce`、PR #91、issue #88、branches `main`）。
 - **分岔登記**：10 筆上游持有檔案分岔全數登記於 [`docs/DIVERGENCE.md`](docs/DIVERGENCE.md)，機械檢查通過。

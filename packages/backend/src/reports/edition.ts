@@ -164,7 +164,7 @@ export async function candidates(start: Date, end: Date): Promise<Candidate[]> {
  * authoritative) in the reports' current public wording, ranked by how the dailies treated it (lead,
  * highlight, the days it was carried), its coverage and its best score. Reports withdrawn since drop out.
  */
-export async function periodEntries(startDate: string, endDate: string): Promise<{ entries: Candidate[]; issues: number }> {
+export async function periodEntries(startDate: string, endDate: string): Promise<{ entries: Candidate[]; issues: number; hasEntries: boolean }> {
   const issues = await sql<{ key: string; content: Record<string, any> }[]>`
     SELECT key, content FROM reports WHERE kind = 'daily' AND key >= ${startDate} AND key <= ${endDate} ORDER BY key`;
   const carried = issues.flatMap((issue) => (issue.content.sections ?? []).flatMap((s: any) => (s.items ?? []).filter((it: any) => it.itemId).map((it: any) => ({
@@ -174,7 +174,7 @@ export async function periodEntries(startDate: string, endDate: string): Promise
     lead: issue.content.leadItemId === it.itemId,
     highlight: (issue.content.highlights ?? []).includes(it.itemId),
   }))));
-  if (carried.length === 0) return { entries: [], issues: issues.length };
+  if (carried.length === 0) return { entries: [], issues: issues.length, hasEntries: false };
   const rows = await sql<ReportRow[]>`
     SELECT ${REPORT_FIELDS}
     FROM publications p JOIN sources s ON s.id = p.source_id
@@ -194,7 +194,7 @@ export async function periodEntries(startDate: string, endDate: string): Promise
     return { candidate: { ...reportEntry(main), category: main.category, factKey: factKeyOf(main) }, rank };
   });
   ranked.sort((a, b) => b.rank - a.rank || a.candidate.itemId.localeCompare(b.candidate.itemId));
-  return { entries: ranked.map((r) => r.candidate), issues: issues.length };
+  return { entries: ranked.map((r) => r.candidate), issues: issues.length, hasEntries: true };
 }
 
 /** Every report an issue cites: its entries, what is listed under them, its flashes. */
@@ -272,6 +272,14 @@ async function missedFacts(start: Date, end: Date): Promise<Array<{ key: string;
     .map(([key, members]) => ({ key, rows: members }));
 }
 
+/** The window's public reports the editors scored: none means judging did not run there, not a quiet day. */
+async function judgedReports(start: Date, end: Date): Promise<number> {
+  const [row] = await sql<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM publications p
+    WHERE ${listedCondition(end)} AND p.score IS NOT NULL AND NOT p.backfill AND p.timeline_at >= ${start} AND p.timeline_at < ${end}`;
+  return row!.n;
+}
+
 /**
  * How much an event matters to a reader of the day: the best score among its selected reports, its
  * heat as the independent participants who discussed it within the issue's window (as the hot list
@@ -289,7 +297,7 @@ interface Fact { key: string; rows: ReportRow[]; selected: boolean; sources: str
  * selected reports and missed facts, minus what the week's issues already carried, one entry per event.
  */
 export async function dailyEdition(date: string, start: Date, end: Date): Promise<{ entries: EditionEntry[]; stats: Record<string, number> }> {
-  const [memory, selected, missed] = await Promise.all([dailyMemory(date), periodReports(start, end), missedFacts(start, end)]);
+  const [memory, selected, missed, judged] = await Promise.all([dailyMemory(date), periodReports(start, end), missedFacts(start, end), judgedReports(start, end)]);
   const raw = [
     ...[...groupBy(selected, factKeyOf)].map(([key, rows]) => ({ key, rows, selected: true })),
     ...missed.map((m) => ({ ...m, selected: false })),
@@ -357,7 +365,7 @@ export async function dailyEdition(date: string, start: Date, end: Date): Promis
   entries.sort((a, b) => b.importance - a.importance || a.entry.itemId.localeCompare(b.entry.itemId));
   return {
     entries,
-    stats: { selectedReports: selected.length, facts: raw.length, repeatsSuppressed: raw.length - kept.length, fillIns: kept.filter((f) => !f.selected).length, events: entries.length },
+    stats: { judgedReports: judged, selectedReports: selected.length, facts: raw.length, repeatsSuppressed: raw.length - kept.length, fillIns: kept.filter((f) => !f.selected).length, events: entries.length },
   };
 }
 

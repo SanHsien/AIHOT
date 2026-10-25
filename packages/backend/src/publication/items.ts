@@ -1,11 +1,15 @@
 // Public read layer, item level. Every exit (site API, v1, RSS, MCP, sitemap) reads
 // items through these columns and views; which rows are public is decided by scope.ts.
-import type { CategoryKey, ChannelKey } from "@aihot/contracts/taxonomy";
+import { CATEGORY_KEYS, toPublicApiCategory, type CategoryKey, type ChannelKey, type PublicApiCategoryKey } from "@aihot/contracts/taxonomy";
 import type { FeedItemSummary, ItemSummary, MediaView, XPostView } from "@aihot/contracts/site";
+import { POLICY } from "@aihot/site";
 import { sql, type Db } from "../db.ts";
+import { isChineseText } from "../lib/text.ts";
+import { isEmptyOrLinkOnly } from "../content/posts.ts";
 import { proxiedImage, proxiedImageSet } from "../media/imgproxy.ts";
+import { sourceOwnsPost } from "../sources/account.ts";
 import { displayTags, publicSourceName } from "./rules.ts";
-import { seatedCondition } from "./scope.ts";
+import { foldableSelectionCondition, seatedCondition } from "./scope.ts";
 
 export interface ItemRow {
   id: string;
@@ -32,6 +36,8 @@ export interface ItemRow {
   /** Participation mode of the source now (editorial, hot_signal, isolated). */
   source_mode: string;
   x_post: Record<string, any> | null;
+  /** Current source icon only when that account is this post's author. */
+  author_avatar_url?: string | null;
   author: string | null;
   language: string | null;
   story_public_id: string | null;
@@ -47,6 +53,7 @@ export const ITEM_COLUMNS = sql`
   p.selected, p.seat, p.channel, p.url, p.published_at, p.discovered_at, p.timeline_at, p.visibility,
   p.body_mode, p.indexable, p.fact_id, s.name AS source_name, s.participation_mode AS source_mode,
   a.x_post, a.author, a.language,
+  CASE WHEN s.kind = 'x_search' AND ${sourceOwnsPost(sql`s.config`, sql`a.x_post->>'handle'`)} THEN s.icon_url END AS author_avatar_url,
   st.public_id::text AS story_public_id, st.title AS story_title,
   CASE WHEN p.channel = 'x' THEN tr.body_text END AS zh_text, qt.text_zh AS quoted_zh`;
 
@@ -73,11 +80,16 @@ export function channelCondition(channel: ChannelKey | null | undefined) {
   return sql`AND p.channel = ${channel}`;
 }
 
-export function categoryCondition(category: CategoryKey | null | undefined, v1 = false) {
+/** The website's filter: one of its own categories. */
+export function categoryCondition(category: CategoryKey | null | undefined) {
   if (!category) return sql``;
-  // v1 and RSS publish opinion as tip.
-  if (v1 && category === "tip") return sql`AND p.category IN ('tip', 'opinion')`;
   return sql`AND p.category = ${category}`;
+}
+
+/** The public API's, RSS's and MCP's filter: every category the site publishes as this one (PUBLIC_CATEGORIES). */
+export function publicCategoryCondition(category: PublicApiCategoryKey | null | undefined) {
+  if (!category) return sql``;
+  return sql`AND p.category IN ${sql(CATEGORY_KEYS.filter((k) => toPublicApiCategory(k) === category))}`;
 }
 
 export function tagCondition(tag: string | null | undefined) {
@@ -101,31 +113,40 @@ function mediaView(m: Record<string, any>, mode: "card" | "thumb" | "full" = "th
   };
 }
 
-export function xView(row: Pick<ItemRow, "x_post" | "zh_text"> & Partial<Pick<ItemRow, "quoted_zh">>, compact = false, responsive = compact): XPostView | null {
+export function xView(row: Pick<ItemRow, "x_post" | "zh_text"> & Partial<Pick<ItemRow, "quoted_zh" | "author_avatar_url">>, compact = false, responsive = compact): XPostView | null {
   const x = row.x_post;
   if (!x) return null;
   const quoted = x.quoted && typeof x.quoted === "object"
     ? {
       authorName: String(x.quoted.authorName ?? ""), handle: String(x.quoted.handle ?? ""), text: String(x.quoted.text ?? ""), url: String(x.quoted.url ?? ""),
-      translation: row.quoted_zh && row.quoted_zh.trim() !== String(x.quoted.text ?? "").trim() ? row.quoted_zh : null,
+      translation: !isEmptyOrLinkOnly(String(x.quoted.text ?? "")) && row.quoted_zh && row.quoted_zh.trim() !== String(x.quoted.text ?? "").trim() ? row.quoted_zh : null,
     }
     : null;
   const media = ((x.media ?? []) as Array<Record<string, any>>)
     .map((raw) => ({ raw, view: mediaView(raw, compact || !responsive ? "thumb" : "full", responsive) }))
     .filter((entry): entry is { raw: Record<string, any>; view: MediaView } => entry.view !== null);
-  const avatarSrcSet = responsive ? proxiedImageSet(x.avatarUrl, "avatar") : null;
+  const avatarUrl = row.author_avatar_url ?? x.avatarUrl;
+  const avatarSrcSet = responsive ? proxiedImageSet(avatarUrl, "avatar") : null;
   return {
     authorName: String(x.authorName ?? x.handle ?? ""),
     handle: String(x.handle ?? ""),
-    avatarUrl: proxiedImage(x.avatarUrl, "avatar"),
+    avatarUrl: proxiedImage(avatarUrl, "avatar"),
     ...(avatarSrcSet ? { avatarSrcSet } : {}),
     text: String(x.text ?? ""),
-    translation: row.zh_text && row.zh_text.trim() !== String(x.text ?? "").trim() ? row.zh_text : null,
+    translation: !isEmptyOrLinkOnly(String(x.text ?? "")) && row.zh_text && row.zh_text.trim() !== String(x.text ?? "").trim() ? row.zh_text : null,
     quoted,
     // A multi-image list grid is 112 CSS px wide; one image can be 240 px. Keep 3x pixels for both.
     // Detail retains full media for the lightbox; srcSet bounds the displayed image.
     media: media.map(({ raw, view }) => compact && media.length > 1 ? mediaView(raw, "card", responsive)! : view),
   };
+}
+
+/**
+ * Whether pages show an X post's own text and media. A site that counts them as full text shows them
+ * only where the source allows full text, as it does an article's body.
+ */
+export function showsPost(row: { channel: string; body_mode: string }): boolean {
+  return row.channel === "x" && (!POLICY.xPostIsFullText || row.body_mode === "full");
 }
 
 /** The shared public article; its X post is added as each answer shows it. */
@@ -153,10 +174,9 @@ export function toItemSummary(row: ItemRow): ItemSummary {
 /** Project the shared public article into the exact fields a site card renders. */
 export function toFeedItemSummary(row: ItemRow): FeedItemSummary {
   const item = toItemSummary(row);
-  // An X post's own text and media are its body: shown only where the source allows full text.
-  const x = row.channel === "x" && row.body_mode === "full" ? xView(row, true) : null;
+  const x = showsPost(row) ? xView(row, true) : null;
   return {
-    id: item.id, title: item.title, summary: item.summary, reason: item.reason,
+    id: item.id, title: item.title, summary: item.summary ?? (x?.text || null), reason: item.reason,
     source: item.source, publishedAt: item.publishedAt, timelineAt: item.timelineAt,
     category: item.category, tags: item.tags, score: item.score, selected: item.selected, channel: item.channel,
     x: x ? {
@@ -168,11 +188,10 @@ export function toFeedItemSummary(row: ItemRow): FeedItemSummary {
 }
 
 /**
- * An article written in Chinese: its language says so, or its text opens in Chinese and it is not marked
- * English (the translator's rule, editorial/translate.ts). Every exit shows such a body as it is.
+ * Every exit uses the same language decision as writing and translation.
  */
 export function isChineseBody(a: { language?: string | null; body_text?: string | null }): boolean {
-  return a.language === "zh" || (/[一-鿿]/.test(a.body_text?.slice(0, 400) ?? "") && a.language !== "en");
+  return isChineseText(a.body_text ?? "", a.language);
 }
 
 /** The complete Chinese translation an export (Markdown, full RSS) carries; a page also shows a partial one. */
@@ -189,7 +208,7 @@ export async function seatHolders(rows: ItemRow[], now: Date, db: Db = sql): Pro
   if (!yielding.length) return new Map();
   const holders = await db<{ fact_id: number; id: string; title: string }[]>`
     SELECT p.fact_id, p.article_id AS id, p.title FROM publications p
-    WHERE p.fact_id IN ${db([...new Set(yielding.map((r) => r.fact_id!))])} AND ${seatedCondition(now)}`;
+    WHERE p.fact_id IN ${db([...new Set(yielding.map((r) => r.fact_id!))])} AND ${seatedCondition(now)} AND ${foldableSelectionCondition()}`;
   const byFact = new Map(holders.map((h) => [Number(h.fact_id), { id: h.id, title: h.title }]));
   return new Map(yielding.flatMap((r) => (byFact.has(Number(r.fact_id)) ? [[r.id, byFact.get(Number(r.fact_id))!] as const] : [])));
 }

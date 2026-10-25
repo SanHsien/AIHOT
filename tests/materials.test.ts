@@ -1,13 +1,16 @@
 // Material storage: every distinct change gets its own revision and history row, also under
 // concurrency; imported history gets a baseline instead of a revision; simultaneous first reports
-// of one URL create one article; other sources' listings, returns to an earlier version and characters
-// lost in transit are no revision (articles used to flip between two versions on every fetch, and a
-// feed garbled a few characters differently on every load).
+// of one URL create one article; other sources' listings, returns to an earlier version, characters
+// lost in transit and characters written as references are no revision (articles used to flip between
+// two versions on every fetch, a feed garbled a few characters differently on every load, and decoding
+// references would have sent every listed post stored with them back to analysis).
 import { tag } from "./setup.ts";
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { closeDb, sql } from "@aihot/backend/db";
 import { upsertMaterial } from "@aihot/backend/content/materials";
+import { readPublicationDate } from "@aihot/backend/sources/dates";
+import { loadAnalyzeInput, buildMaterial } from "@aihot/backend/editorial/input";
 import { identityKeyForUrl } from "@aihot/backend/lib/url";
 
 const SOURCE = `test-materials-${tag()}`;
@@ -34,10 +37,10 @@ test("invalid source timestamps remain unknown on inserts and revisions", async 
 });
 
 /** An article as a history import writes it: imported content, no hash, no history row, analysed. */
-async function imported(url: string) {
+async function imported(url: string, title = "Imported title") {
   const id = `imp${tag()}`;
   await sql`INSERT INTO articles (id, source_id, identity_key, url, title, discovered_at, timeline_at, revision, content_hash, body_text, body_status, processing_state)
-            VALUES (${id}, ${SOURCE}, ${identityKeyForUrl(url)}, ${url}, 'Imported title', now(), now(), 1, NULL, 'imported body', 'ok', 'analyzed')`;
+            VALUES (${id}, ${SOURCE}, ${identityKeyForUrl(url)}, ${url}, ${title}, now(), now(), 1, NULL, 'imported body', 'ok', 'analyzed')`;
   return id;
 }
 
@@ -52,15 +55,6 @@ test("concurrent changes to one article each get a revision", async () => {
   const history = await sql<{ revision: number }[]>`SELECT revision FROM article_revisions WHERE article_id = ${first.articleId} ORDER BY revision`;
   assert.equal(article!.revision, 7);
   assert.deepEqual(history.map((h) => h.revision), [1, 2, 3, 4, 5, 6, 7]);
-});
-
-test("an unchanged report does not add a revision", async () => {
-  const url = `https://example.com/same-${tag()}`;
-  const first = await upsertMaterial({ sourceId: SOURCE, url, title: "Same", excerpt: "same", via: "fetch" });
-  const again = await upsertMaterial({ sourceId: SOURCE, url, title: "Same", excerpt: "same", via: "fetch" });
-  assert.equal(again.revised, false);
-  const [article] = await sql<{ revision: number }[]>`SELECT revision FROM articles WHERE id = ${first.articleId}`;
-  assert.equal(article!.revision, 1);
 });
 
 // Failure modes: a corrected revision inherits exhausted retries, a future retry time, or the
@@ -91,10 +85,7 @@ test("a material revision resets old processing failures without resetting uncha
 
 test("an imported article's first report records a baseline, not a revision", async () => {
   const url = `https://example.com/imported-${tag()}`;
-  const id = `imp${tag()}`;
-  // What a history import writes: imported content, no hash, already analysed.
-  await sql`INSERT INTO articles (id, source_id, identity_key, url, title, discovered_at, timeline_at, revision, content_hash, body_text, body_status, processing_state)
-            VALUES (${id}, ${SOURCE}, ${identityKeyForUrl(url)}, ${url}, 'Imported  title', now(), now(), 1, NULL, 'imported body', 'ok', 'analyzed')`;
+  const id = await imported(url, "Imported  title");
   const listed = { sourceId: SOURCE, url, title: "Imported title", excerpt: "feed summary", via: "fetch" as const };
   const first = await upsertMaterial(listed);
   assert.deepEqual([first.articleId, first.revised, first.created], [id, false, false]);
@@ -203,4 +194,44 @@ test("characters lost in transit are no revision, lost or restored", async () =>
   assert.equal((await upsertMaterial(edited(garbled[1]!))).revised, true, "a real change is one, lost characters or not");
   for (const report of [edited(clean), edited(garbled[2]!)]) assert.equal((await upsertMaterial(report)).revised, false);
   assert.equal((await state(first.articleId)).revision, 2);
+});
+
+test("a character written as a reference is the same text, stored either way", async () => {
+  // Titles and summaries stored before feeds' references were decoded keep them; the same listing
+  // read again arrives decoded and is no new material (no second analysis of every listed post).
+  const url = `https://example.com/references-${tag()}`;
+  const stored = { sourceId: SOURCE, url, title: "Friends don&#8217;t let friends &mdash; ever", excerpt: "what you&#x2019;ll get &amp; more&hellip;", via: "fetch" as const };
+  const first = await upsertMaterial(stored);
+  const decoded = { ...stored, title: "Friends don’t let friends — ever", excerpt: "what you’ll get & more…" };
+  assert.equal((await upsertMaterial(decoded)).revised, false);
+  assert.equal((await upsertMaterial(stored)).revised, false);
+  assert.equal((await state(first.articleId)).revision, 1);
+  assert.equal((await upsertMaterial({ ...decoded, title: "Friends don’t let friends, updated" })).revised, true, "a real change still is one");
+});
+
+test('stored publication date remains a date in the model input, even at a source timezone boundary', async () => {
+  const source = 'precision-fixture';
+  await sql`INSERT INTO sources (id,name,kind,config,tier) VALUES (${source},'Precision','external','{}','T1')`;
+  const input = { sourceId: source, url: 'https://example.org/date', title: 'Original day', bodyText: 'Original text', bodyStatus: 'ok' as const, via: 'fetch' as const,
+    ...readPublicationDate('2026-10-13', '-07:00'), discoveredAt: new Date('2026-10-13T09:00:00Z') };
+  const { articleId } = await upsertMaterial(input);
+  const article = await loadAnalyzeInput(articleId);
+  assert.equal(article?.publicationTime, '2026-10-13');
+  assert.match(buildMaterial(article!), /2026-10-13（原文仅有日期，时刻未知）/);
+  assert.doesNotMatch(buildMaterial(article!), /15:00/);
+  await upsertMaterial(input);
+  const [row] = await sql`SELECT publication_time, revision FROM articles WHERE id=${articleId}`;
+  assert.equal(row?.publication_time, '2026-10-13');
+  assert.equal(row?.revision, 1);
+});
+
+test("rereading an exact midnight upgrades day precision without a new revision", async () => {
+  const input = { sourceId: SOURCE, url: `https://example.com/precision-${tag()}`, title: "Release", via: "fetch" as const,
+    ...readPublicationDate("2026-10-13", "-07:00"), discoveredAt: new Date("2026-10-13T09:00:00Z") };
+  const { articleId } = await upsertMaterial(input);
+  await upsertMaterial({ ...input, ...readPublicationDate("2026-10-13T00:00:00-07:00") });
+  await upsertMaterial(input);
+  const [row] = await sql`SELECT publication_time, revision FROM articles WHERE id=${articleId}`;
+  assert.equal(row!.publication_time, "2026-10-13T07:00:00.000Z");
+  assert.equal(row!.revision, 1);
 });

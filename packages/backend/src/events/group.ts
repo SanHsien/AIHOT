@@ -2,7 +2,7 @@
 // facts hang on a story, an occurrence with its direct developments. Recall (recall.ts): the same
 // title-and-summary embedding on both sides over the reports of the last 14 days (shared bigrams
 // without an embedding key), plus the same URL and the X post a post replies to or quotes.
-// Identity: one three-way relation judgement over the candidate
+// Identity: one four-way relation judgement over the candidate
 // facts with their representative reports fully described (relate.ts); a merge that is not obvious
 // from similarity is confirmed by a second vendor before it is written; a development attaches only
 // to the fact that started its story, so stories do not grow by chaining. Manual corrections
@@ -15,15 +15,16 @@
 // reports merges into where it went, so its address keeps working. Discussion posts that found no
 // story get another look when a report founds a fact close to them (rematchSignals); history
 // (isHistorical) founds no event. Runs serially (queue concurrency 1).
-import { modelFor } from "../editorial/models.ts";
-import { beijingDate } from "@aihot/contracts/time";
+import { modelFor, modelRoute } from "../editorial/models.ts";
+import { beijingDate, beijingMidnight } from "@aihot/contracts/time";
 import { sql, type Db, type Tx } from "../db.ts";
 import { newShortId, newUuid } from "../lib/ids.ts";
 import { chatJson } from "../providers/llm.ts";
-import { completeReceipt } from "../providers/receipts.ts";
+import { completeReceipt, failedReceiptId, failureKind } from "../providers/receipts.ts";
 import { embeddingsAvailable } from "../providers/embeddings.ts";
-import { isHistorical, STALE_ON_DISCOVERY_MS } from "../content/materials.ts";
+import { isHistorical, newsCondition } from "../content/materials.ts";
 import { enqueue, QUEUES, shutdownSignal } from "../jobs/queue.ts";
+import { groupingPriority } from "../jobs/content.ts";
 import { publishArticle, publishArticleTx } from "../publication/publish.ts";
 import { latestCompositeCondition } from "../publication/scope.ts";
 import { consolidate, liveStory, type Consolidation } from "./consolidate.ts";
@@ -50,6 +51,7 @@ interface ArticleRow {
   title: string;
   url: string;
   published_at: Date | null;
+  publication_time: string | null;
   discovered_at: Date;
   grouped_at: Date | null;
   body_text: string | null;
@@ -76,7 +78,7 @@ const NO_SELECTED_COVERAGE: SelectionValue = { addsValue: true, reason: "没有�
 
 async function judgeBatch(articleId: string, query: ReportView, cands: CandidateView[], reading: ReadingContext[]): Promise<{ verdicts: Map<number, Verdict>; selection: SelectionValue; receiptId: number }> {
   const res = await chatJson({
-    model: await modelFor("group"), purpose: "group_article", subject: `article:${articleId}`, promptVersion: BATCH_PROMPT_VERSION,
+    ...await modelRoute("group"), purpose: "group_article", subject: `article:${articleId}`, promptVersion: BATCH_PROMPT_VERSION,
     system: BATCH_SYSTEM, user: batchUser(query, cands, "新报道", reading), schema: BatchSchema.refine(value => completeDecisions(value.decisions, cands.length), "Every candidate requires exactly one decision"), temperature: 0, maxTokens: 400 + 120 * cands.length,
   });
   return { verdicts: verdictsByFact(res.data.decisions, cands), selection: cands.some(c => c.selected) || reading.length ? res.data.selection : NO_SELECTED_COVERAGE, receiptId: res.receiptId };
@@ -93,7 +95,7 @@ async function confirmMerge(articleId: string, query: ReportView, cand: Candidat
 
 async function judgeSignal(articleId: string, query: ReportView, cands: CandidateView[]): Promise<{ verdicts: Map<number, Verdict>; receiptId: number }> {
   const res = await chatJson({
-    model: await modelFor("group"), purpose: "group_signal", subject: `article:${articleId}`, promptVersion: RELATE_PROMPT_VERSION,
+    ...await modelRoute("group"), purpose: "group_signal", subject: `article:${articleId}`, promptVersion: RELATE_PROMPT_VERSION,
     system: SIGNAL_SYSTEM, user: batchUser(query, cands, "帖子"), schema: SignalSchema.refine(value => completeDecisions(value.decisions, cands.length), "Every candidate requires exactly one decision"), temperature: 0, maxTokens: 150 + 60 * cands.length,
   });
   return { verdicts: verdictsByFact(res.data.decisions, cands), receiptId: res.receiptId };
@@ -109,7 +111,7 @@ async function createStory(db: Db, title: string, at: Date): Promise<number> {
 }
 
 async function createFact(db: Db, storyId: number, title: string, frame: Record<string, any> | null, at: Date): Promise<number> {
-  let occurred = typeof frame?.occurredAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(frame.occurredAt) ? new Date(`${frame.occurredAt}T00:00:00+08:00`) : null;
+  let occurred = typeof frame?.occurredAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(frame.occurredAt) ? beijingMidnight(frame.occurredAt) : null;
   if (occurred && (!Number.isFinite(+occurred) || beijingDate(occurred) !== frame!.occurredAt)) occurred = null;
   const conditions = Array.isArray(frame?.conditions) ? frame.conditions.map((c: { text?: string }) => c.text).filter(Boolean).join("；") || null : null;
   const [row] = await db<{ id: number }[]>`
@@ -249,11 +251,13 @@ export async function groupArticle(articleId: string, opts: GroupOptions = {}): 
     await publishArticle(articleId);
     return result;
   } catch (error) {
-    const receiptId = error && typeof error === 'object' && 'receiptId' in error && typeof error.receiptId === 'number' ? error.receiptId : null;
     // A late failed model call must not undo an editor's completed decision, or a fact already
-    // committed before an optional downstream operation failed. Shutdown leaves work pending.
-    await sql`UPDATE articles SET grouping_status = ${shutdownSignal.signal.aborted ? 'pending' : 'failed'},
-      grouped_at = NULL, grouping_receipt_id = ${receiptId}, grouping_error = ${String(error).slice(0, 2000)}
+    // committed before an optional downstream operation failed. Shutdown, budget waits and an unbilled
+    // provider outage (every route rejected the request as retryable) leave work pending for the repair sweep.
+    const kind = failureKind(error);
+    const waiting = shutdownSignal.signal.aborted || kind === "budget" || kind === "outage";
+    await sql`UPDATE articles SET grouping_status = ${waiting ? 'pending' : 'failed'},
+      grouped_at = NULL, grouping_receipt_id = ${failedReceiptId(error)}, grouping_error = ${String(error).slice(0, 2000)}
       WHERE id = ${articleId} AND revision = ${revision} AND grouping_status <> 'complete' AND ${!(error instanceof GroupingSupersededError)}`;
     await publishArticle(articleId);
     throw error;
@@ -262,7 +266,7 @@ export async function groupArticle(articleId: string, opts: GroupOptions = {}): 
 
 async function decide(articleId: string, opts: GroupOptions, revision: number, recheckSelection: boolean): Promise<GroupResult> {
   const [a] = await sql<ArticleRow[]>`
-    SELECT a.id, a.revision, a.title, a.url, a.published_at, a.discovered_at, a.grouped_at, a.body_text, a.x_post, a.backfill,
+    SELECT a.id, a.revision, a.title, a.url, a.published_at, a.publication_time, a.discovered_at, a.grouped_at, a.body_text, a.x_post, a.backfill,
            s.id AS source_id, s.name AS source_name, s.signal_group_id, (s.tier = 'T1') AS first_party, s.participation_mode
     FROM articles a JOIN sources s ON s.id = a.source_id WHERE a.id = ${articleId}`;
   if (a && a.revision !== revision) throw new GroupingSupersededError("Grouping input changed before it was read");
@@ -284,12 +288,13 @@ async function decide(articleId: string, opts: GroupOptions, revision: number, r
   }
   const composite = an?.composite === true;
   const unsupported = an?.output?.scope === "unknown" && !an.output.fact;
-  const left = composite || unsupported
+  const historical = isHistorical(a);
+  const left = composite || unsupported || historical
     ? await sql.begin(async (tx) => { await lockCurrentRevision(tx, articleId, a.revision); return resetAutomatic(tx, articleId); })
     : [];
 
   // History founds no event and adds no heat (isHistorical); a regroup takes it out of any it joined.
-  if (isHistorical(a)) {
+  if (historical) {
     await markGrouped(articleId, a.revision, { addsValue: true, reason: "历史资料按原文时间归档" });
     return { verdict: "historical" };
   }
@@ -318,7 +323,7 @@ async function decide(articleId: string, opts: GroupOptions, revision: number, r
   }
   const title = an.title_zh || a.title;
   const query: ReportView = {
-    title, source: a.source_name, firstParty: a.first_party, at: observedAt, summary: an.summary_zh,
+    title, source: a.source_name, firstParty: a.first_party, at: a.published_at, publicationTime: a.publication_time, summary: an.summary_zh,
     scope: composite ? "composite" : an.output?.scope === "single" ? "single" : "unknown",
     frame: frame ? { subject: frame.subject, action: frame.action, object: frame.object, occurredAt: frame.occurredAt } : null,
   };
@@ -331,7 +336,7 @@ async function decide(articleId: string, opts: GroupOptions, revision: number, r
   }]))[0]?.selected === true;
   const cands = selectedSameUrl ? [] : await candidateViews(await recallFacts(articleId,
     reportText(title, an.summary_zh), RECALL_MIN_COSINE, RECALL_TOP_FACTS, [...referenced, ...(sameUrl ? [sameUrl] : [])]));
-  const reading = selectedSameUrl ? [] : await recallSelectedBackground(articleId, reportText(title, an.summary_zh), RECALL_MIN_COSINE);
+  const reading = selectedSameUrl ? [] : await recallSelectedBackground(articleId, reportText(title, an.summary_zh), RECALL_MIN_COSINE, cands.map(c => c.factId));
   let verdicts = new Map<number, Verdict>();
   let selection = NO_SELECTED_COVERAGE;
   const receipts: number[] = [];
@@ -348,7 +353,10 @@ async function decide(articleId: string, opts: GroupOptions, revision: number, r
     const late = await sql.begin(async (tx) => {
       await lockCurrentRevision(tx, articleId, a.revision);
       const manual = await manualDecision(tx, articleId);
-      if (manual) return manual;
+      if (manual) {
+        if (receiptId !== null) await completeReceipt(tx, receiptId);
+        return manual;
+      }
       for (const c of cands) {
         const v = verdicts.get(c.factId);
         if (v && v.relation !== "UNRELATED" && v.confidence >= TIE_MIN_CONFIDENCE) {
@@ -358,9 +366,9 @@ async function decide(articleId: string, opts: GroupOptions, revision: number, r
       }
       await recordDecision(tx, articleId, null, null, "roundup", cands.map((c) => ({ id: c.factId, score: c.score, ...verdicts.get(c.factId) })), receiptId);
       await markGrouped(articleId, a.revision, selection, tx);
+      if (receiptId !== null) await completeReceipt(tx, receiptId);
       return null;
     });
-    if (receiptId !== null) await completeReceipt(sql, receiptId);
     // A newly identified composite may have supplied an older digest. Rebuild its former stories
     // from their remaining reports, without redirecting an emptied story into an unrelated one.
     for (const id of left) await enqueue(QUEUES.digest, { storyId: id }, { singletonKey: `story:${id}` });
@@ -375,9 +383,9 @@ async function decide(articleId: string, opts: GroupOptions, revision: number, r
       await markGrouped(articleId, a.revision, manual ? { addsValue: true, reason: "人工确认的归属" } : selection, tx);
       if (!manual) await recordDecision(tx, articleId, kept.factId, kept.storyId, "kept",
         cands.map(c => ({ id: c.factId, score: c.score, ...verdicts.get(c.factId) })), receipts[0] ?? null);
+      for (const receiptId of receipts) await completeReceipt(tx, receiptId);
       return manual;
     });
-    for (const receiptId of receipts) await completeReceipt(sql, receiptId);
     return late ? { verdict: "manual", factId: late.factId } : { verdict: "kept", factId: kept.factId, storyId: kept.storyId };
   }
   let verdict: GroupResult["verdict"] = "new-story";
@@ -438,6 +446,7 @@ async function decide(articleId: string, opts: GroupOptions, revision: number, r
     const late = await manualDecision(tx, articleId);
     if (late) {
       await markGrouped(articleId, a.revision, { addsValue: true, reason: "人工确认的归属" }, tx);
+      for (const id of receipts) await completeReceipt(tx, id);
       return { manual: late, factId: null, storyId: null };
     }
     if (storyId !== null) {
@@ -453,9 +462,9 @@ async function decide(articleId: string, opts: GroupOptions, revision: number, r
     await recordSignal(tx, story, articleId, source, "editorial", observedAt);
     await recordDecision(tx, articleId, fact, story, verdict, decisionCandidates, receipts[0] ?? null);
     await markGrouped(articleId, a.revision, selection, tx);
+    for (const id of receipts) await completeReceipt(tx, id);
     return { manual: null, factId: fact, storyId: story };
   });
-  for (const id of receipts) await completeReceipt(sql, id);
   if (written.manual) return { verdict: "manual", factId: written.manual.factId };
   const result: GroupResult = { verdict, factId: written.factId!, storyId: written.storyId! };
 
@@ -500,8 +509,7 @@ const WAIT_HOURS = 48;
 
 /** Discussion posts not yet attached to any story (a post a person placed or detached is left alone). */
 const unattachedSignal = sql`
-  s.participation_mode = 'hot_signal' AND a.processing_state = 'skipped'
-  AND (NOT a.backfill OR a.discovered_at - a.published_at <= make_interval(secs => ${STALE_ON_DISCOVERY_MS / 1000}))
+  s.participation_mode = 'hot_signal' AND a.processing_state = 'skipped' AND ${newsCondition}
   AND NOT EXISTS (SELECT 1 FROM story_signals ss WHERE ss.article_id = a.id)
   AND NOT EXISTS (SELECT 1 FROM grouping_decisions d WHERE d.article_id = a.id AND d.verdict <> 'signal-unmatched')
   AND NOT EXISTS (SELECT 1 FROM grouping_overrides o WHERE o.article_id = a.id)`;
@@ -516,7 +524,7 @@ async function reclaimWaiting(tweetId: string): Promise<number> {
     SELECT a.id FROM articles a JOIN sources s ON s.id = a.source_id
     WHERE a.discovered_at > now() - make_interval(hours => ${WAIT_HOURS}) AND ${unattachedSignal}
       AND (a.x_post->>'replyTo' = ${tweetId} OR substring(a.x_post->'quoted'->>'url' from '/status/([0-9]+)') = ${tweetId})`;
-  for (const p of posts) await enqueue(QUEUES.group, { articleId: p.id, signalOnly: true }, { singletonKey: p.id, priority: -1 });
+  for (const p of posts) await enqueue(QUEUES.group, { articleId: p.id, signalOnly: true }, { singletonKey: p.id, priority: groupingPriority({ signal: true, historical: false }) });
   return posts.length;
 }
 
@@ -541,7 +549,7 @@ async function rematchSignals(articleId: string, queryText: string): Promise<num
     const v = vectors.get(p.id);
     if (!v || cosine32(mine, v) < SIGNAL_MIN_COSINE) continue;
     // A post still waiting in the queue keeps that job (same key): it will meet the new fact anyway.
-    await enqueue(QUEUES.group, { articleId: p.id, signalOnly: true }, { singletonKey: p.id, priority: -1 });
+    await enqueue(QUEUES.group, { articleId: p.id, signalOnly: true }, { singletonKey: p.id, priority: groupingPriority({ signal: true, historical: false }) });
     close += 1;
   }
   return close;
@@ -585,7 +593,7 @@ async function groupSignal(a: ArticleRow, source: { id: string; signal_group_id:
   }
   const cands = await candidateViews(recalled);
   if (cands.length === 0) return { verdict: "signal-unmatched" };
-  const query: ReportView = { title: a.title, source: a.source_name, firstParty: false, at: observedAt, summary: a.body_text?.slice(0, 300) ?? null };
+  const query: ReportView = { title: a.title, source: a.source_name, firstParty: false, at: a.published_at, publicationTime: a.publication_time, summary: a.body_text?.slice(0, 300) ?? null };
   const { verdicts, receiptId } = await judgeSignal(a.id, query, cands);
   const target = signalTarget(cands, verdicts);
   return write(target, target ? "signal" : "signal-unmatched", asCandidates(verdicts), receiptId);

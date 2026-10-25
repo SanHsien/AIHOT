@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import type { ItemAvailability } from "@aihot/contracts/site";
-import { SITE } from "@aihot/industry/site";
+import { SITE } from "@aihot/site";
 import { Presence } from "../components/ui/Presence";
 import { edgeTtl } from "../lib/api.server";
 import { pageMeta } from "../lib/seo";
@@ -11,6 +11,7 @@ import { IconBookmark, IconDownload, IconClose } from "../components/icons";
 import { readSnapshot, restoreAnchor, useSaveOnLeave } from "../lib/restore";
 import { PhoneBar } from "../components/shell/PhoneBar";
 import type { Screen } from "../components/shell/screens";
+import { webModules } from "../site-modules";
 
 export const handle: Screen = { tab: "me", name: "收藏" };
 
@@ -24,8 +25,9 @@ export function meta() {
 
 function reportText(r: ImportReport): string {
   const parts = [`新增收藏 ${r.starredAdded} 条`, `已读记录 ${r.readAdded} 条`];
-  if (r.starredSkipped || r.readSkipped) parts.push(`超出上限或格式不对而跳过 ${r.starredSkipped + r.readSkipped} 条`);
-  if (r.themeApplied) parts.push("已沿用导入的主题");
+  if (r.starredSkipped || r.readSkipped) parts.push(`有 ${r.starredSkipped + r.readSkipped} 条没导入（超出数量上限或格式不对）`);
+  if (r.themeApplied) parts.push("已沿用导入的深浅色设置");
+  if (r.fontApplied) parts.push("已沿用导入的字体设置");
   if (r.readFailed) parts.push("已读记录没能保存（浏览器存储已满或不可用）");
   return parts.join("，");
 }
@@ -87,6 +89,13 @@ export default function StarredPage() {
     }
   };
 
+  // Imports from elsewhere that the site's modules offer.
+  const importFrom = (run: () => Promise<{ ok: boolean; text: string }>) =>
+    run().then(
+      (r) => setNotice({ kind: r.ok ? "ok" : "error", text: r.text }),
+      (err: Error) => setNotice({ kind: "error", text: err.message }),
+    );
+
   const action = "text-[12.5px] text-ink-3 transition-colors hover:text-accent";
   return (
     <div className="pb-12">
@@ -94,9 +103,14 @@ export default function StarredPage() {
       <header className="flex flex-col gap-2 pb-4 pt-3 sm:flex-row sm:items-start sm:justify-between lg:pt-1">
         <div>
           <h1 data-page-title="" className="text-[24px] font-semibold leading-[1.3] text-ink">收藏</h1>
-          <p className="mt-1.5 text-[13px] text-ink-3">本机收藏的 {SITE.name} 内容，适合稍后阅读和回看。</p>
+          <p className="mt-1.5 text-[13px] text-ink-3">{`本机收藏的 ${SITE.name} 内容，适合稍后阅读和回看。`}</p>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 sm:pt-1.5">
+          {webModules().flatMap((m) => m.starredImports ?? []).map((i) => (
+            <button key={i.label} type="button" onClick={() => importFrom(i.run)} className={action}>
+              {i.label}
+            </button>
+          ))}
           <button type="button" onClick={() => fileRef.current?.click()} className={action}>
             导入文件
           </button>
@@ -108,7 +122,7 @@ export default function StarredPage() {
           <input ref={fileRef} type="file" accept="application/json,.json" className="sr-only" onChange={(e) => doImport(e.target.files?.[0])} />
         </div>
       </header>
-      <p className="rounded-tile border border-line bg-surface px-4 py-2.5 text-[12.5px] text-ink-3">收藏只保存在当前浏览器；清除浏览器数据或换设备后不会同步。</p>
+      <p className="rounded-tile border border-line bg-surface px-4 py-2.5 text-[12.5px] text-ink-3">不用登录，收藏直接存在这个浏览器里；清除浏览器数据或换设备都不会同步，换设备前可以先导出备份。</p>
       <Presence show={!!notice} enter="anim-notice-in" exit="anim-fade-out" duration={160}>
         <div
           role="status"
@@ -156,7 +170,7 @@ export default function StarredPage() {
                   )}
                 </h2>
                 {s.summary && <p className="mt-1.5 line-clamp-2 text-[14px] leading-[1.75] text-ink-3">{s.summary}</p>}
-                {unavailable && <p className="mt-2 text-[12.5px] text-hot">这条内容已不再公开，收藏会保留直到你手动移除。</p>}
+                {unavailable && <p className="mt-2 text-[12.5px] text-hot">这条内容已经下架，收藏会一直保留，直到你手动移除。</p>}
                 {status === "summary-only" && <p className="mt-2 text-[12.5px] text-amber-ink">应来源方要求，这条内容现在只提供摘要。</p>}
               </li>
             );

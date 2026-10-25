@@ -20,8 +20,26 @@ export interface AdminMe {
   dev: boolean;
 }
 
-/** Items waiting for the admin, shown on the navigation. */
-export type AdminNavCounts = Partial<Record<"feedback" | "sources" | "runs" | "monitor", number>>;
+export interface AdminPresentationRefresh {
+  revision: number;
+  version: string;
+  ready: boolean;
+  applied: boolean;
+  changed: boolean;
+  reason: string | null;
+  images: { before: number; after: number };
+  links: { before: number; after: number };
+  translation: "absent" | "reused" | "source" | "blocked";
+}
+
+export interface AdminRerun {
+  step: "extract" | "analyze" | "group" | "presentation";
+  preview?: boolean;
+  version?: string;
+}
+
+/** Items waiting for the admin, shown on the navigation: the engine's, and the modules' under their own keys. */
+export type AdminNavCounts = Partial<Record<"feedback" | "sources" | "runs", number>> & Record<string, number | undefined>;
 
 /** One manual change (audit_log), as a history list shows it. */
 export interface AdminAuditEntry {
@@ -44,6 +62,18 @@ export interface AdminAudit {
 }
 
 // Sources
+
+/** Ordinary collectors may replace one another while retaining a source's identity and history. */
+export const REPLACEABLE_SOURCE_KINDS = ["rss", "web_list", "json_list"] as const;
+export type ReplaceableSourceKind = typeof REPLACEABLE_SOURCE_KINDS[number];
+
+export interface AdminSourceUpdate {
+  patch: Partial<Pick<AdminSource, "name" | "enabled" | "interval_minutes" | "tier" | "participation_mode" | "signal_group_id" | "first_party" | "owner_entity_id" | "site_fulltext" | "syndicate_fulltext" | "tags">> & (
+    { kind?: never; config?: Record<string, unknown> } | { kind: ReplaceableSourceKind; config: Record<string, unknown> }
+  );
+  version: string;
+  reason?: string;
+}
 
 export interface AdminSourceRow {
   id: string;
@@ -100,7 +130,7 @@ export interface AdminSourceDetail {
   source: AdminSource;
   runs: Array<{
     id: number; started_at: Timestamp; finished_at: Timestamp | null; status: string; found_count: number | null; new_count: number | null; error: string | null;
-    detail: { pages?: number; backlog?: number; dropped?: number } | null;
+    detail: { pages?: number; backlog?: number; dropped?: number; presentationFailures?: Array<{ url: string; error: string }> } | null;
   }>;
   items: Array<{ id: string; title: string; url: string; discovered_at: Timestamp; published_at: Timestamp | null; processing_state: string; selected: boolean | null; visibility: string | null; title_zh: string | null }>;
   stats: { total: number; last7d: number; selected: number };
@@ -217,6 +247,7 @@ export interface AdminFeedbackRow {
   created_at: Timestamp;
   updated_at: Timestamp;
   banned: boolean;
+  email_banned: boolean;
   from_source: number;
 }
 
@@ -224,7 +255,7 @@ export interface AdminFeedback {
   page: number;
   rows: AdminFeedbackRow[];
   counts: Record<string, number>;
-  bans: Array<{ source_hash: string; reason: string | null; created_by: string | null; created_at: Timestamp }>;
+  bans: Array<{ source_hash: string; reason: string | null; created_by: string | null; created_at: Timestamp; expires_at: Timestamp | null }>;
 }
 
 // Runs
@@ -275,68 +306,8 @@ export interface AdminRuns {
   errors: Array<{ error: string; n: number; last: Timestamp; example: string }>;
   retrying: { count: number; next: Timestamp | null };
   ingest: Array<{ client: string; kind: string; status: string; error: string | null; summary: unknown; created_at: Timestamp }>;
-  leaderboard: { at: Timestamp; sources: Array<{ key: string; ok: boolean; at: Timestamp; lastOkAt: Timestamp | null; changed?: boolean; rows?: number; error?: string }> } | null;
-}
-
-// Reset monitor corrections
-
-export interface AdminMonitorEventPost {
-  postId: string;
-  stage: string;
-  action: string;
-  text: string;
-  originalText: string;
-  publishedAt: Timestamp;
-  url: string;
-}
-
-export interface AdminMonitorEvent {
-  id: string;
-  type: "direct_reset" | "reset_credit";
-  status: "announced" | "confirmed";
-  label: string;
-  display_label: string;
-  scope: string;
-  schedule: { precision: string; from: Timestamp; through: Timestamp; label: string } | null;
-  estimate: { label: string; basis: string } | null;
-  presentation: Record<string, any> | null;
-  confirmed_at: Timestamp | null;
-  occurred_on: Timestamp | null;
-  confirmation_basis: string | null;
-  withdrawn: boolean;
-  created_at: Timestamp;
-  updated_at: Timestamp;
-  posts: AdminMonitorEventPost[];
-}
-
-export interface AdminMonitorEvents {
-  events: AdminMonitorEvent[];
-}
-
-export interface AdminMonitorPost {
-  id: string;
-  published_at: Timestamp;
-  text: string;
-  url: string;
-  translation: string | null;
-  processed_at: Timestamp | null;
-  receipt_id: number | null;
-  origin: string;
-  propositions: Array<Record<string, any>> | null;
-  needs_review: boolean | null;
-  held: Array<{ action: string; excerpt: string }> | null;
-  reviewed: boolean | null;
-  skipped: boolean | null;
-  failures: { count: number; since: Timestamp; error?: string } | null;
-  relevant: boolean | null;
-  outage: unknown;
-  links: Array<{ eventId: string; stage: string }>;
-}
-
-export interface AdminMonitorPosts {
-  page: number;
-  filter: string;
-  rows: AdminMonitorPost[];
+  /** Each module's part of the page, under its name (what its server module's admin.runs returns). */
+  modules: Record<string, unknown>;
 }
 
 // Settings
@@ -392,7 +363,7 @@ export interface AdminModelUsage {
 
 export interface AdminModels {
   days: number;
-  capabilities: Array<{ key: string; label: string; env: string; defaultModel: string; vision: boolean; current: { model: string; source: "admin" | "env" | "default" }; usage: AdminModelUsage[] }>;
+  capabilities: Array<{ key: string; label: string; env: string; defaultModel: string; vision: boolean; current: { model: string; source: "admin" | "env" | "default" }; fallback: { model: string; primaryPaused: boolean; backupPaused: boolean; nextProbeAt: string | null } | null; usage: AdminModelUsage[] }>;
   choices: Array<{ key: string; service: string; vision: boolean }>;
   history: Array<{ at: Timestamp; actor: string; subject: string; reason: string | null; before: { model: string; source: string } | null; after: { model: string; source: string } | null }>;
   benches: Array<{ id: string; label: string; sample_size: number; prompt_version: string | null; models: string[]; created_at: Timestamp }>;

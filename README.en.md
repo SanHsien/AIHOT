@@ -57,14 +57,15 @@ Sources → deduplication/pre-filter → dual scoring and writing → event grou
 | Dual selection | Pre-filtering, two independent scores, tier thresholds, and same-news deduplication; calibrated with SelectBench |
 | Writing | Chinese headlines, conclusion-first summaries, recommendation notes, translation, classification, tags, and fact extraction |
 | Events and hotness | Cross-source grouping, event digests, timeline ordering, independent-source heat, and trend indicators |
-| Daily/weekly/monthly | Daily at 08:00, weekly on Monday, monthly on the first day of each month |
-| Topics and search | Company, direction, and content-format pages; 12-month chronicles; title, summary, and full-text search |
+| Daily/weekly/monthly | Daily (default 08:00), weekly on Monday and monthly on the first day (default 10:00 and 10:30); change the times with `EDITION_TIMES` in `site/site.ts` |
+| Topics and search | Company, direction, and content-format pages; title, summary, and full-text search |
+| Reading settings | Light/dark appearance, site or browser default font; bookmarks and reading settings stay on the device and can be exported and imported |
 | Agent interfaces | RSS, public API, MCP, Agent Markdown, `llms.txt`, and OpenAPI 3.0.0 |
 | Admin panel | Source management and test crawls, diagnostics, evaluation, model routing, budget circuit breaker, runs, and alerts |
 
 ## Quick Start
 
-You need [Docker](https://docs.docker.com/get-docker/) and an OpenAI-compatible model API key, such as DeepSeek, Qwen, or GLM. Local development also requires Node.js 24+.
+You need [Docker](https://docs.docker.com/get-started/get-docker/), [Node.js 24](https://nodejs.org/en/download) (used by `init-env`), and an OpenAI-compatible model API key, such as DeepSeek, Qwen, or GLM. `init-env` configures DeepSeek by default; for Qwen, GLM and others, edit `LLM_BASE_URL`, `LLM_MODEL` and `LLM_EXTRA_JSON` in `.env` following `.env.example`, and set `LLM_REASONING_TOKENS` for reasoning models so they have output budget left for the answer.
 
 ```bash
 git clone https://github.com/SanHsien/AIHOT.git myhot
@@ -73,24 +74,24 @@ node scripts/init-env.ts --llm-key <YOUR_MODEL_API_KEY>
 docker compose up -d --build
 ```
 
-Open <http://localhost:3000>. The admin panel is at `/admin`; its password is `ADMIN_PASSWORD` in `.env`. Collection normally starts within a few minutes, and initial ingestion takes about 30 minutes.
+Open <http://localhost:3000>. The admin panel is at `/admin`; its password is `ADMIN_PASSWORD` in `.env`. Collection normally starts within a few minutes, and initial ingestion takes about 30 minutes. Once the site is up, open `/agent` to copy the MCP, RSS or API connection; agents that can only read web pages start from `/api/v1/agent`, and the API contract is at `/openapi-v1.json`. Running without Docker on Linux or macOS (WSL2 on Windows) is covered in [Deployment](docs/deploy.md).
 
 ## Customize for Your Industry
 
-Industry-specific settings live under [`industry/`](industry/):
+Site content lives under [`site/`](site/) and industry knowledge under [`industry/`](industry/):
 
 | File | Purpose |
 |---|---|
-| `site.ts` | Site name, subject, homepage, and About copy |
-| `taxonomy.ts`, `topics.json` | Categories, tags, and topics |
-| `chronicle.ts`, `chronicles/` | Topic chronicle rules and optional curated company history |
-| `sources.json` | Initial sources |
-| `prompts/` | Selection and writing standards |
-| `selection.ts` | Selection thresholds |
-| `features.ts` | Feature switches such as leaderboard and Codex reset monitor |
-| `brand/`, `pages/` | Icons, terms, and privacy notice |
+| `site/site.ts` | Site name, subject, edition times, homepage and About copy, wording on items and reports, public-interface categories |
+| `site/models.ts` | Default model for each step (leave as is to use the one in `.env` everywhere) |
+| `site/brand/`, `site/pages/`, `site/public/`, `site/changelog.json` | Icons and logo, terms and privacy notice, root files such as `robots.txt`, changelog |
+| `industry/taxonomy.ts`, `industry/topics.json` | Categories, tags, and topics |
+| `industry/sources.json` | Initial sources |
+| `industry/prompts/` | Selection and writing standards |
+| `industry/selection.ts` | Selection thresholds |
+| `modules/` | Features only your site needs and the framework lacks (see [Architecture](docs/architecture.md#模块)) |
 
-Spend the most time on `prompts/selection-score.md` and the thresholds. Label 100–200 examples, then calibrate with `scripts/eval-selection.ts` as described in [`docs/selection.md`](docs/selection.md).
+Spend the most time on `industry/prompts/selection-score.md` and the thresholds. Label 100–200 examples, then calibrate with `scripts/eval-selection.ts` as described in [`docs/selection.md`](docs/selection.md).
 
 ## Local Development and Verification
 
@@ -107,12 +108,13 @@ DATABASE_URL=postgres://127.0.0.1:5432/aihot_test npm test
 
 ## Documentation
 
-- [Industry customization](docs/customize.md): identity, taxonomy, topics, chronicles, sources, prompts, thresholds, and branding.
+- [Industry customization](docs/customize.md): identity, taxonomy, topics, sources, prompts, thresholds, models, and branding.
 - [Sources](docs/sources.md): source types, tiers, full text, and external ingestion.
 - [Selection and calibration](docs/selection.md): selection, reporting, and sample-based calibration.
 - [Event grouping](docs/grouping.md): event relationships and pairwise gold-set evaluation.
+- [Story digest evaluation](docs/story-digest-evaluation.md): compare digest prompts side by side on the same events before changing them.
 - [Deployment](docs/deploy.md): Docker, domains, HTTPS, upgrades, backups, and cost.
-- [Architecture](docs/architecture.md): services, data flow, and public interfaces.
+- [Architecture](docs/architecture.md): services, data flow, modules, database migrations, and public interfaces.
 - [Fork maintenance](FORK.md): maintenance policy and boundaries.
 - [Upstream review](docs/UPSTREAM.md): reviewed commits, PRs, issues, branches, tags, and releases.
 

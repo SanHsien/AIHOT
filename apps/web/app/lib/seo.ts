@@ -1,10 +1,10 @@
 // Page metadata from one place: title template, canonical address, OG images, robots; and list addresses,
-// with the feed filters they carry. The site's name and wording come from the industry pack
-// (industry/site.ts); its address from SITE_URL.
+// with the feed filters they carry. The site's name and wording come from site/site.ts;
+//; its address from SITE_URL.
 import type { MetaDescriptor } from "react-router";
-import type { ReportDetail, TimelineFilters } from "@aihot/contracts/site";
+import { REPORT_NAMES, reportDateLabel, type ReportDetail, type StoryDetail, type TimelineFilters } from "@aihot/contracts/site";
 import { isCategoryKey, isChannelKey } from "@aihot/contracts/taxonomy";
-import { SITE, subjectAfter, withSubject } from "@aihot/industry/site";
+import { SITE, subjectAfter, withSubject } from "@aihot/site";
 
 /**
  * The site's address: SITE_URL while rendering on the server (what crawlers and share previews read),
@@ -60,6 +60,11 @@ export function filterParams(f: TimelineFilters) {
   return { channel: f.channel === "all" ? null : f.channel, category: f.category, tag: f.tag };
 }
 
+/** Filter combinations are browsing views; the unfiltered feed and its archive pages remain indexable. */
+export function hasFeedFilters(filters: TimelineFilters | undefined): boolean {
+  return !!filters && (filters.channel !== "all" || !!filters.category || !!filters.tag);
+}
+
 /** "Title · Site". */
 export function titled(title: string): string {
   return `${title} · ${SITE.name}`;
@@ -104,7 +109,16 @@ export function organizationLd() {
     name: SITE.organization.name,
     url: base,
     logo: `${base}/icon.png`,
-    ...(founder ? { founder: { "@type": "Person", name: founder.name, ...(founder.description ? { description: founder.description } : {}), ...(founder.url ? { sameAs: [founder.url] } : {}) } } : {}),
+    ...(founder ? {
+      founder: {
+        "@type": "Person",
+        name: founder.name,
+        ...(founder.alternateName ? { alternateName: founder.alternateName } : {}),
+        ...(founder.jobTitle ? { jobTitle: founder.jobTitle } : {}),
+        ...(founder.description ? { description: founder.description } : {}),
+        ...(founder.sameAs?.length ? { sameAs: founder.sameAs } : {}),
+      },
+    } : {}),
   };
 }
 
@@ -146,7 +160,8 @@ export function siteLd() {
       url: base,
       inLanguage: SITE.locale,
       isAccessibleForFree: true,
-      keywords: [withSubject("资讯"), withSubject("新闻"), withSubject("日报"), withSubject("行业动态")],
+      ...(SITE.since ? { temporalCoverage: `${SITE.since}/..` } : {}),
+      keywords: SITE.keywords,
       creator: orgRef(),
       publisher: orgRef(),
       distribution: [
@@ -179,7 +194,7 @@ export function itemListLd(path: string, name: string, titles: string[]) {
 }
 
 /** An item page: the site's reading of a third-party report, based on (not claiming) the original. */
-export function articleLd(input: { path: string; headline: string; description?: string | null; publishedAt?: string | null; modifiedAt?: string | null; basedOn?: string | null; section?: string[] }) {
+export function articleLd(input: { path: string; headline: string; description?: string | null; publishedAt?: string | null; modifiedAt?: string | null; image?: string | null; basedOn?: string | null; section?: string[] }) {
   const base = siteUrl();
   const url = `${base}${input.path}`;
   const description = input.description?.trim();
@@ -193,7 +208,9 @@ export function articleLd(input: { path: string; headline: string; description?:
     headline: input.headline.slice(0, 110),
     ...(description ? { description: description.slice(0, 300) } : {}),
     inLanguage: SITE.locale,
-    ...(input.publishedAt ? { datePublished: input.publishedAt, dateModified: input.modifiedAt ?? input.publishedAt } : {}),
+    ...(input.publishedAt ? { datePublished: input.publishedAt } : {}),
+    ...(input.modifiedAt ? { dateModified: input.modifiedAt } : {}),
+    ...(input.image ? { image: new URL(input.image, base).href } : {}),
     ...(input.section?.length ? { articleSection: input.section } : {}),
     isAccessibleForFree: true,
     author: orgRef(),
@@ -216,26 +233,77 @@ export function archiveLd(path: string, name: string, entries: Array<{ path: str
   };
 }
 
-const REPORT_NAME = { daily: "日报", weekly: "周报", monthly: "月报" } as const;
+/** An issue's Chinese date and actual editorial lead, falling back only to a still-public visible highlight. */
+export function reportTitle(report: ReportDetail): string {
+  const lead = report.lead?.title.trim() || report.highlights.find((item) => item.available)?.title.trim();
+  const name = `${withSubject(REPORT_NAMES[report.kind])}｜${reportDateLabel(report.kind, report.key)}`;
+  return lead ? `${name}：${lead}` : name;
+}
 
 /** One report issue: an editorial round-up by the site (no personal byline), sections as its sections. */
 export function reportLd(r: ReportDetail, path: string, description: string) {
   return articleLd({
     path,
-    headline: `${SITE.name} ${REPORT_NAME[r.kind]} · ${r.key}`,
+    headline: reportTitle(r),
     description,
     publishedAt: r.generatedAt,
+    image: `/og/reports/${r.kind}/${r.key}.png`,
     section: r.sections.map((s) => s.label),
   });
 }
 
-/**
- * A topic page: the collection, when a report last reached it, and its chronicle as a list. Entries
- * name their event page when it has one (event pages are indexable, most article pages are not).
- */
-export function topicLd(input: { path: string; name: string; description: string; dateModified: string | null; events: Array<{ title: string; href: string | null }> }) {
+/** The event page collects public reports; their publication times do not date the page itself. */
+export function storyLd(story: StoryDetail) {
+  const base = siteUrl();
+  const url = `${base}/story/${story.publicId}`;
+  const description = story.digest ?? story.summary ?? story.excerpt?.text;
+  const updated = [story.latestAt, story.digest ? story.digestUpdatedAt : null]
+    .filter((at): at is string => !!at).sort((a, b) => Date.parse(b) - Date.parse(a))[0];
+  const reports = [...story.timeline].sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": `${url}#collection`,
+    url,
+    name: story.title,
+    ...(description ? { description } : {}),
+    inLanguage: SITE.locale,
+    isPartOf: { "@id": `${base}/#website` },
+    ...(updated ? { dateModified: updated } : {}),
+    ...(reports.length ? {
+      mainEntity: {
+        "@type": "ItemList",
+        name: "报道时间线",
+        itemListOrder: "https://schema.org/ItemListOrderDescending",
+        numberOfItems: reports.length,
+        itemListElement: reports.map((report, index) => ({ "@type": "ListItem", position: index + 1, name: report.title })),
+      },
+    } : {}),
+  };
+}
+
+/** A topic page: the collection, when a report last reached it, and the lists its parts show. */
+export function topicLd(input: {
+  path: string;
+  name: string;
+  description: string;
+  dateModified: string | null;
+  lists: Array<{ name: string; entries: Array<{ title: string; href: string | null }> }>;
+}) {
   const base = siteUrl();
   const url = `${base}${input.path}`;
+  // Entries name their event page when they have one (event pages are indexable, most article pages are not).
+  const lists = input.lists.filter((l) => l.entries.length > 0).map((l) => ({
+    "@type": "ItemList",
+    name: `${input.name} · ${l.name}`,
+    numberOfItems: l.entries.length,
+    itemListElement: l.entries.map((e, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: e.title,
+      ...(e.href?.startsWith("/story/") ? { url: `${base}${e.href}` } : {}),
+    })),
+  }));
   return {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
@@ -246,18 +314,6 @@ export function topicLd(input: { path: string; name: string; description: string
     inLanguage: SITE.locale,
     isPartOf: { "@id": `${base}/#website` },
     ...(input.dateModified ? { dateModified: input.dateModified } : {}),
-    ...(input.events.length > 0 ? {
-      mainEntity: {
-        "@type": "ItemList",
-        name: `${input.name} · 大事记`,
-        numberOfItems: input.events.length,
-        itemListElement: input.events.map((e, i) => ({
-          "@type": "ListItem",
-          position: i + 1,
-          name: e.title,
-          ...(e.href?.startsWith("/story/") ? { url: `${base}${e.href}` } : {}),
-        })),
-      },
-    } : {}),
+    ...(lists.length > 0 ? { mainEntity: lists.length === 1 ? lists[0] : lists } : {}),
   };
 }

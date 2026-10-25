@@ -1,16 +1,19 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useRouteLoaderData } from "react-router";
-import { SITE } from "@aihot/industry/site";
-import { FEATURES } from "@aihot/industry/features";
+import { POLICY, SITE } from "@aihot/site";
 import type { loader as rootLoader } from "../root";
 import { useChangelogDot } from "../components/shell/Sidebar";
 import { PhoneBar } from "../components/shell/PhoneBar";
+import { inNav } from "../components/shell/nav";
 import type { Screen } from "../components/shell/screens";
 import { edgeTtl } from "../lib/api.server";
+import { webModules } from "../site-modules";
 import { pageMeta } from "../lib/seo";
-import { useStarred } from "../lib/local-state";
+import { setFontPreference, useFontPreference, useStarred } from "../lib/local-state";
+import { Select } from "../components/ui/Controls";
 import { ThemeSwitch } from "../components/shell/ThemeSwitch";
-import { IconBookmark, IconChevronRight, IconGrid, IconHeart, IconHistory, IconMessage, IconMoon, IconPlug, IconSparkles } from "../components/icons";
+import { Filings } from "../components/shell/Filings";
+import { IconBookmark, IconChevronRight, IconGrid, IconHeart, IconMessage, IconMoon, IconPlug, IconSparkles } from "../components/icons";
 
 export const handle: Screen = { tab: "me", name: "我的" };
 
@@ -28,10 +31,14 @@ export function meta() {
  */
 type Row = { to: string; label: string; icon: ReactNode; detail?: ReactNode };
 
-const TOOLS: Row[] = [
-  ...(FEATURES.codexResetMonitor ? [{ to: "/codex-reset", label: "Tibo 重置监控", icon: <IconHistory size={20} /> }] : []),
-  { to: "/topics", label: "主题", icon: <IconGrid size={20} /> },
-  { to: "/agent", label: "Agent 接入", icon: <IconPlug size={20} />, detail: "MCP · RSS · API" },
+/** The ways in that the agent page offers, the modules' first; its row names the first three. */
+const agentWays = () => [...webModules().flatMap((m) => m.agentWays ?? []), "MCP", "RSS", "API"];
+
+/** The modules' tools first, then the engine's. */
+const tools = (): Row[] => [
+  ...webModules().flatMap((m) => m.tools ?? []),
+  ...(inNav("/topics") ? [{ to: "/topics", label: "主题", icon: <IconGrid size={20} /> }] : []),
+  { to: "/agent", label: "Agent 接入", icon: <IconPlug size={20} />, detail: agentWays().slice(0, 3).join(" · ") },
 ];
 
 function Group({ title, children }: { title?: string; children: ReactNode }) {
@@ -63,6 +70,7 @@ export default function MorePage() {
   const root = useRouteLoaderData<typeof rootLoader>("root");
   const changelogDot = useChangelogDot(root?.changelogVersion ?? null);
   const starred = useStarred();
+  const font = useFontPreference();
   // The count is this browser's: shown once the page runs here, never in the shared server copy.
   const [here, setHere] = useState(false);
   useEffect(() => setHere(true), []);
@@ -80,9 +88,17 @@ export default function MorePage() {
             <span className="flex-1">外观</span>
             <ThemeSwitch className="w-[126px]" />
           </li>
+          <li className="flex min-h-[56px] items-center gap-3 px-4 text-[16px] font-medium text-ink">
+            <span className="w-5 text-center text-ink-3" aria-hidden="true">Aa</span>
+            <span className="flex-1">字体</span>
+            <Select aria-label="字体" value={font ?? "system"} onChange={(e) => setFontPreference(e.target.value === "browser" ? "browser" : null)}>
+              <option value="system">默认字体</option>
+              <option value="browser">浏览器默认字体</option>
+            </Select>
+          </li>
         </Group>
         <Group title="工具与入口">
-          {TOOLS.map((r) => (
+          {tools().map((r) => (
             <RowLink key={r.to} row={r} />
           ))}
         </Group>
@@ -93,10 +109,11 @@ export default function MorePage() {
         </Group>
       </div>
       <div className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[12px] leading-[2] text-ink-4">
-        <Link viewTransition to="/terms" className="hover:text-ink-2">使用规则</Link>
+        <Link viewTransition to="/terms" className="hover:text-ink-2">{POLICY.terms.name}</Link>
         <Link viewTransition to="/privacy" className="hover:text-ink-2">隐私说明</Link>
         <a href="/feed.xml" className="hover:text-ink-2">RSS</a>
-        {SITE.icp && <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" className="hover:text-ink-2">{SITE.icp}</a>}
+        {SITE.github && <a href={SITE.github} target="_blank" rel="noopener noreferrer" className="hover:text-ink-2">GitHub 开源</a>}
+        <Filings className="hover:text-ink-2" badgeSize={13} />
       </div>
     </div>
   );

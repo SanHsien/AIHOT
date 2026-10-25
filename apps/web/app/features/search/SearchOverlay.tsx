@@ -3,8 +3,9 @@
 // (/all?q=…). Below the field: this browser's recent searches, topics to browse and what is hot now.
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Form, Link, useLocation, useNavigation } from "react-router";
-import type { HotResponse, TopicsResponse } from "@aihot/contracts/site";
+import type { SearchSuggestions } from "@aihot/contracts/site";
 import { IconClose, IconSearch } from "../../components/icons";
+import { inNav } from "../../components/shell/nav";
 import { addRecentSearch, clearRecentSearches, useRecentSearches } from "../../lib/local-state";
 import { useModal } from "../../components/ui/modal";
 
@@ -36,19 +37,13 @@ export function openSearch(query = "", trigger?: HTMLElement) {
   setOpen(true);
 }
 
-type TopicLink = Pick<TopicsResponse["topics"][number], "slug" | "name" | "group">;
+let suggestions: Promise<SearchSuggestions> | null = null;
 
-let suggestions: Promise<{ topics: TopicLink[]; hot: Array<{ rank: number; title: string; to: string }> }> | null = null;
-
-/** Topics and the hot ranking, read once per page load when the search first opens. */
+/** Share only an ongoing read; the HTTP cache owns freshness and failed reads can be retried. */
 function loadSuggestions() {
-  suggestions ??= Promise.all([
-    fetch("/api/site/topics").then((r) => (r.ok ? (r.json() as Promise<TopicsResponse>) : { topics: [] as TopicLink[] })).catch(() => ({ topics: [] as TopicLink[] })),
-    fetch("/api/site/hot").then((r) => (r.ok ? (r.json() as Promise<HotResponse>) : null)).catch(() => null),
-  ]).then(([t, h]) => ({
-    topics: t.topics,
-    hot: (h?.entries ?? []).slice(0, 5).map((e) => ({ rank: e.rank, title: e.story.title, to: `/story/${e.story.publicId}` })),
-  }));
+  suggestions ??= fetch('/api/site/search/suggestions')
+    .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() as Promise<SearchSuggestions>; })
+    .finally(() => { suggestions = null; });
   return suggestions;
 }
 
@@ -79,14 +74,17 @@ export function SearchOverlay() {
 
   useEffect(() => {
     if (!shown) return;
+    let active = true;
     setHasText(!!input.current?.value);
-    void loadSuggestions().then(setMore);
+    setMore(null);
+    void loadSuggestions().then(value => { if (active) setMore(value); }).catch(() => {});
     // At the desktop breakpoint this layer is hidden by CSS; it must stop holding the page still too.
     const desktop = window.matchMedia("(min-width: 961px)");
     const onResize = () => { if (desktop.matches) close(); };
     onResize();
     desktop.addEventListener("change", onResize);
     return () => {
+      active = false;
       desktop.removeEventListener("change", onResize);
     };
   }, [shown]);
@@ -191,13 +189,15 @@ export function SearchOverlay() {
               <h2 className="text-[13px] font-semibold text-ink-3">按主题找</h2>
               <div className="mt-2.5 flex flex-wrap gap-2">
                 {companies.map((t) => (
-                  <Link viewTransition key={t.slug} to={`/topics/${t.slug}`} className={`${chip} bg-bg-sunk text-ink-2 ring-1 ring-inset ring-line-soft active:bg-bg-muted dark:bg-bg-muted/60`}>
+                  <Link viewTransition key={t.slug} to={`/topics/${t.slug}`} className={`${chip} bg-well text-ink-2 ring-1 ring-inset ring-line-soft active:bg-bg-muted`}>
                     <span className="truncate">{t.name}</span>
                   </Link>
                 ))}
-                <Link viewTransition to="/topics" className={`${chip} gap-0.5 font-medium text-accent`}>
-                  全部 {more!.topics.length} 个主题
-                </Link>
+                {inNav("/topics") && (
+                  <Link viewTransition to="/topics" className={`${chip} gap-0.5 font-medium text-accent`}>
+                    全部 {more!.topics.length} 个主题
+                  </Link>
+                )}
               </div>
             </section>
           )}

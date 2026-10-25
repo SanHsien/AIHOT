@@ -1,9 +1,10 @@
-// External collection reports (docs/sources.md). Same identity rules and timeline
+// External collection reports (POST /api/ingest/items). Same identity rules and timeline
 // rule as every other entrance: old or future-dated items and explicit backfill never count as
 // today's news and are never pushed. Unknown sources are created isolated, awaiting an operator.
 import { sql } from "../db.ts";
 import { upsertMaterial } from "../content/materials.ts";
 import { queueProcessing } from "../jobs/content.ts";
+import { readPublicationDate } from "../sources/dates.ts";
 import { normalizeUrl } from "../lib/url.ts";
 
 export const MAX_ITEMS = 50;
@@ -48,7 +49,7 @@ export async function ingestItems(body: { sourceId?: unknown; sourceName?: unkno
     const url = normalizeUrl(rawUrl);
     if (!url || seen.has(url)) continue;
     seen.add(url);
-    const published = typeof it.publishedAt === "string" ? new Date(it.publishedAt) : null;
+    const publication = readPublicationDate(typeof it.publishedAt === "string" ? it.publishedAt : null, "+00:00");
     const flags = it.raw?._aihot ?? {};
     const res = await upsertMaterial({
       sourceId: source!.id,
@@ -57,7 +58,7 @@ export async function ingestItems(body: { sourceId?: unknown; sourceName?: unkno
       url: rawUrl,
       title,
       author: typeof it.author === "string" ? it.author.slice(0, 200) : null,
-      publishedAt: published && Number.isFinite(published.getTime()) ? published : null,
+      ...publication,
       raw: it.raw ?? null,
       via: "ingest",
       backfill: flags.backfill ? "reported-backfill" : flags.baseline ? "reported-baseline" : null,

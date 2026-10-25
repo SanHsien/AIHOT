@@ -4,7 +4,7 @@
 // Everything outward is off unless explicitly enabled (development and tests stay silent).
 import { readFile, unlink } from "node:fs/promises";
 import path from "node:path";
-import { beijingDate, beijingTime } from "@aihot/contracts/time";
+import { beijingStamp } from "@aihot/contracts/time";
 import { config, credential } from "../config.ts";
 import { sql } from "../db.ts";
 
@@ -61,9 +61,10 @@ async function sendToChat(chatId: string, msgType: "text" | "post" | "interactiv
 
 // Operations alerts
 // Read by the site owner, not an engineer (operations/alerts.ts): what readers see, whether it heals,
-// what the owner must do, and a last line of detail for the AI or engineer it is forwarded to.
+// and what the owner must do.
 
-export type Level = "now" | "today" | "digest";
+/** How urgent: readers affected now, money or the owner's hands today, or a follow-up that can wait. */
+export type Level = "now" | "today" | "later";
 
 export interface Finding {
   key: string;
@@ -74,24 +75,18 @@ export interface Finding {
   impact?: string;
   /** Whether it heals by itself. */
   heals?: string;
-  /** What the owner has to do ("转给 AI" when it is engineering work). */
+  /** What has to be done. */
   action?: string;
-  /** For the AI or engineer the owner forwards it to. */
+  /** Facts for whoever looks into it: the 09:00 digest lists them, an alert to the owner never carries them. */
   detail?: string;
   /** When the problem began, when known; otherwise when it was first seen. */
   since?: Date;
+  /** New evidence after a dated closure reopens a source follow-up under the same key. */
+  observedAt?: Date;
 }
 
-const MARK: Record<Exclude<Level, "digest">, string> = { now: "🔴", today: "🟠" };
+const MARK: Record<Exclude<Level, "later">, string> = { now: "🔴", today: "🟠" };
 
-/** "9月29日" in Beijing time. */
-export function beijingDay(at: Date | string | number): string {
-  const [, m, d] = beijingDate(at).split("-").map(Number);
-  return `${m}月${d}日`;
-}
-
-/** "9月29日 13:40" in Beijing time. */
-export const beijingStamp = (at: Date | string | number) => `${beijingDay(at)} ${beijingTime(at)}`;
 
 export function duration(ms: number): string {
   const min = Math.max(1, Math.round(ms / 60_000));
@@ -102,9 +97,9 @@ export function duration(ms: number): string {
 
 /** The message for an open problem: first notice or a repeat. */
 export function formatAlert(f: Finding, since: Date, now: number, repeat = false): { title: string; lines: string[] } {
-  const level = f.level === "digest" ? "today" : f.level;
+  const level = f.level === "later" ? "today" : f.level;
   const lasting = now - since.getTime() >= 60_000 ? `（已持续 ${duration(now - since.getTime())}）` : "";
-  const lines = [f.impact && `影响：${f.impact}`, f.heals && `会自己好吗：${f.heals}`, f.action && `你需要：${f.action}`, f.detail && `给 AI 的细节：${f.detail}`];
+  const lines = [f.impact && `影响：${f.impact}`, f.heals && `会自己好吗：${f.heals}`, f.action && `你需要：${f.action}`];
   return { title: `${MARK[level]} ${repeat ? "仍未恢复：" : ""}${f.title}${lasting}`, lines: lines.filter((l): l is string => !!l) };
 }
 
@@ -190,7 +185,7 @@ export async function forwardFeedbackToFeishu(id: number): Promise<"sent" | "dis
   }
 }
 
-/** Custom-bot webhook for content groups (selected cards, reset pushes). */
+/** Custom-bot webhook for content groups (selected cards and other pushes). */
 export async function postWebhook(url: string, card: unknown): Promise<{ status: "sent" | "failed" | "unknown"; body: string }> {
   const res = await fetch(url, {
     method: "POST",

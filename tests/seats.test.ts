@@ -10,6 +10,7 @@ import { closeDb, sql } from "@aihot/backend/db";
 import { upsertMaterial } from "@aihot/backend/content/materials";
 import { stopBoss } from "@aihot/backend/jobs/queue";
 import { publishArticle } from "@aihot/backend/publication/publish";
+import { ITEM_COPY } from "@aihot/site";
 import { encodeCursor, decodeCursor, queryBinding } from "@aihot/backend/lib/cursor";
 import { loadTimeline } from "@aihot/backend/publication/timeline";
 import { buildApp } from "../apps/api/src/app.ts";
@@ -30,17 +31,21 @@ after(async () => {
   await closeDb();
 });
 
+// Reports arrive a second apart, the first a minute ago: their order and the windows that end at the reader's
+// clock hold even when the VM's clock steps back (on the CI VMs by as much as 0.4 s).
+const start = Date.now() - 60_000;
 let n = 0;
 async function report(source: string, fact: number) {
   n += 1;
+  const at = new Date(start + n * 1000);
   const { articleId } = await upsertMaterial({
-    sourceId: source, url: `https://example.com/seats-${T}-${n}`, title: `Seat ${n} ${T}`, bodyText: "body", bodyHtml: "<p>body</p>", bodyStatus: "ok", via: "fetch", publishedAt: new Date(),
+    sourceId: source, url: `https://example.com/seats-${T}-${n}`, title: `Seat ${n} ${T}`, bodyText: "body", bodyHtml: "<p>body</p>", bodyStatus: "ok", via: "fetch", publishedAt: at, discoveredAt: at,
   });
   await sql`INSERT INTO analyses (article_id, input_revision, origin, relevance, category, title_zh, summary_zh, reason_zh, score, selected, tags)
             VALUES (${articleId}, 1, 'rule', 'pass', 'industry', ${`标题${n}-${T}`}, ${`摘要${n}-${T}`}, ${`理由${n}`}, 80, true, ${[`t-${T}`]})`;
   await sql`INSERT INTO fact_articles (fact_id, article_id, role) VALUES (${fact}, ${articleId}, 'report')`;
   await sql`UPDATE articles SET grouping_status = 'complete', grouped_at = now() WHERE id = ${articleId}`;
-  await publishArticle(articleId, { releasedAt: new Date(Date.now() - 60_000) });
+  await publishArticle(articleId, { releasedAt: at });
   return articleId;
 }
 
@@ -88,8 +93,8 @@ test("one fact holds one selected seat on v1, RSS and the sync ledger", async ()
   const detail = (await get(`/api/site/items/${first}`)).json as { reason: string | null; sameEvent?: { id: string } | null };
   assert.equal(detail.sameEvent?.id, official);
   assert.equal(detail.reason, null);
-  assert.ok(!(await get(`/items/${first}/markdown`)).body.includes("推荐理由"));
-  assert.ok((await get(`/items/${official}/markdown`)).body.includes("推荐理由"));
+  assert.ok(!(await get(`/items/${first}/markdown`)).body.includes(ITEM_COPY.reasonLabel));
+  assert.ok((await get(`/items/${official}/markdown`)).body.includes(ITEM_COPY.reasonLabel));
   // The website still folds every report of the fact into the reading group.
   const home = (await get(`/api/site/timeline?limit=40&tag=${encodeURIComponent(`t-${T}`)}`)).json.cards as Array<{ item: { id: string }; group: { reportCount: number } | null }>;
   const card = home.find((c) => c.item.id === official);

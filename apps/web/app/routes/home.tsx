@@ -1,14 +1,18 @@
-import { data as withHeaders, redirect, useLoaderData } from "react-router";
+import { redirect, useLoaderData } from "react-router";
 import type { Route } from "./+types/home";
 import type { TimelineResponse } from "@aihot/contracts/site";
-import { apiDeadlineCache, loadOr404 } from "../lib/api.server";
-import { filterParams, itemListLd, listPath, pageMeta, readFilters, siteLd } from "../lib/seo";
+import { cachedPage, loadOr404 } from "../lib/api.server";
+import { pageReuse } from "../lib/page-reuse";
+import { filterParams, hasFeedFilters, itemListLd, listPath, pageMeta, readFilters, siteLd } from "../lib/seo";
+import { inNav } from "../components/shell/nav";
 import type { Screen } from "../components/shell/screens";
 import { Timeline } from "../features/feed/Timeline";
 import { HotTopics } from "../features/feed/HotTopics";
 import { ActiveFilters, CategoryTabs, FeedBar, SearchField } from "../features/feed/Filters";
 
 export const handle: Screen = { tab: "featured", name: "精选" };
+export { pageHeaders as headers } from "../lib/api.server";
+export const { clientLoader, shouldRevalidate } = pageReuse<typeof loader>();
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
@@ -18,17 +22,13 @@ export async function loader({ request }: Route.LoaderArgs) {
   const filters = readFilters(url.searchParams);
   const upstream = new Headers();
   const data = await loadOr404<TimelineResponse>(listPath("/api/site/timeline", filterParams(filters)), { responseHeaders: upstream, signal: request.signal });
-  return withHeaders({ data, filters }, { headers: apiDeadlineCache(60, Date.now(), upstream) });
+  return cachedPage(60, { data, filters }, upstream);
 }
 
 export function meta({ loaderData }: Route.MetaArgs) {
   const path = listPath("/", loaderData ? filterParams(loaderData.filters) : {});
   const titles = loaderData?.data.cards.map((c) => c.item.title) ?? [];
-  return pageMeta({ path, jsonLd: path === "/" ? [...siteLd(), itemListLd("/", "精选", titles)] : undefined });
-}
-
-export function headers({ loaderHeaders }: Route.HeadersArgs) {
-  return loaderHeaders;
+  return pageMeta({ path, noindex: hasFeedFilters(loaderData?.filters), jsonLd: path === "/" ? [...siteLd(), itemListLd("/", "精选", titles)] : undefined });
 }
 
 export default function Home() {
@@ -47,7 +47,7 @@ export default function Home() {
         </div>
       </div>
 
-      {data.hot && <HotTopics entries={data.hot} />}
+      {data.hot && inNav("/hot") && <HotTopics entries={data.hot} />}
 
       <Timeline initial={data} filters={data.filters} />
     </div>

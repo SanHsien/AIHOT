@@ -38,11 +38,12 @@ export function useAdminAction() {
         const res = await fetch(path, {
           method,
           credentials: "same-origin",
-          headers: { "content-type": "application/json", "x-csrf-token": me.csrf, "idempotency-key": key },
+          // A JSON content type with no body is refused, so commands without a body send neither.
+          headers: { ...(body === undefined ? {} : { "content-type": "application/json" }), "x-csrf-token": me.csrf, "idempotency-key": key },
           body: body === undefined ? undefined : JSON.stringify(body),
         });
         if (res.status === 401) {
-          window.location.href = `/api/auth/login?return=${encodeURIComponent(window.location.pathname)}`;
+          window.location.href = `/api/auth/login?return=${encodeURIComponent(window.location.pathname + window.location.search)}`;
           return null;
         }
         const text = await res.text();
