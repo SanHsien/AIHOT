@@ -1,6 +1,6 @@
 # 上游審查紀錄
 
-最後審查：2026-10-25（上游 `ce83484`、PR 水位 #269、issue 水位 #267）
+最後審查：2026-10-25（上游 `ce83484`、PR 水位 #269、issue 水位 #270）
 
 本檔只記可執行結論。機器水位與 open PR head SHA 放在 [`tools/upstream_baseline.json`](../tools/upstream_baseline.json)。相同 SHA、狀態與庫存不重審；任一項變動才重新評估。
 
@@ -38,6 +38,7 @@
 |---:|---|---|
 | [#261](https://github.com/KKKKhazix/AIHOT/issues/261) | 模組恢復全文譯文的寫入入口提案；與 PR #263 同一件事，本 fork 暫不跟。 | #263 合併或 issue 有結論。 |
 | [#267](https://github.com/KKKKhazix/AIHOT/issues/267) | 分享圖允許站點補充字體（補 Noto Sans SC 子集缺字）。本 fork 沒有自訂分享圖字體的需求；缺字只影響罕用字。 | 上游提出實作，或本 fork 站點出現分享圖缺字。 |
+| [#270](https://github.com/KKKKhazix/AIHOT/issues/270) | 使用者詢問公眾號與社媒信源為何常被阻擋；純提問、無缺陷、無 PR，不需動作。 | issue 出現缺陷結論或關聯 PR。 |
 
 已關閉的舊追蹤項（#67、#77、#86、#88）全部在上游關閉，結論見上節。#88（推理模型 `max_tokens`）已由 #105 的「推理模型額度」處理，workaround `LLM_EXTRA_JSON` 不再需要；README 已記載 `LLM_REASONING_TOKENS`。
 

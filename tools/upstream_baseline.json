@@ -7,7 +7,7 @@
   "reviewed_through": "ce8348477438cce2b417c1403290a511c812a7c5",
   "reviewed_date": "2026-10-25",
   "reviewed_pr_through": 269,
-  "reviewed_issue_through": 267,
+  "reviewed_issue_through": 270,
   "latest_tag": null,
   "latest_release": null,
   "reviewed_open_prs": {
@@ -15,7 +15,8 @@
   },
   "reviewed_open_issues": [
     261,
-    267
+    267,
+    270
   ],
-  "notes": "Upstream main commits through ce83484 and tickets through PR #269 / issue #267 were reviewed on 2026-10-25. Decisions are recorded in docs/UPSTREAM.md. Review again only when main, a tracked open PR head SHA, issue state/content, branch inventory, tags, or releases change."
+  "notes": "Upstream main commits through ce83484 and tickets through PR #269 / issue #270 were reviewed on 2026-10-25. Decisions are recorded in docs/UPSTREAM.md. Review again only when main, a tracked open PR head SHA, issue state/content, branch inventory, tags, or releases change."
 }
