@@ -1,6 +1,6 @@
 # 上游審查紀錄
 
-最後審查：2026-10-25（上游 `ce83484`、PR 水位 #269、issue 水位 #270）
+最後審查：2026-10-27（上游 `ce83484`、PR 水位 #269、issue 水位 #271）
 
 本檔只記可執行結論。機器水位與 open PR head SHA 放在 [`tools/upstream_baseline.json`](../tools/upstream_baseline.json)。相同 SHA、狀態與庫存不重審；任一項變動才重新評估。
 
@@ -26,7 +26,7 @@
 
 | PR | Head | 決定 | 重新審查條件 |
 |---:|---|---|---|
-| [#263](https://github.com/KKKKhazix/AIHOT/pull/263) | `656564f` | 暫不移植。新增「全文譯文導入入口」，動 `editorial/translate.ts`＋測試共 35 行；屬新的寫入入口（對應 open issue #261），產品行為尚未被上游收下，本 fork 沒有需要它的模組。判準八掃描 0 命中。 | head SHA 或狀態改變。 |
+| [#263](https://github.com/KKKKhazix/AIHOT/pull/263) | `656564f`（2026-10-27 重取 `refs/pull/263/head` 仍是同一 SHA，無 force-push） | 暫不移植。新增「全文譯文導入入口」，動 `editorial/translate.ts`＋測試共 35 行；屬新的寫入入口（對應 open issue #261），產品行為尚未被上游收下，本 fork 沒有需要它的模組。判準八掃描 0 命中（2026-10-27 對 `b3998dc..656564f` 差量重掃：2 檔 35 行，無「空白夾程式」、無超長單行、無 `eval`／`new Function(`／`globalThis`、無長 base64）。 | head SHA 或狀態改變。 |
 
 ## Closed, unmerged pull requests
 
@@ -38,11 +38,12 @@
 |---:|---|---|
 | [#261](https://github.com/KKKKhazix/AIHOT/issues/261) | 模組恢復全文譯文的寫入入口提案；與 PR #263 同一件事，本 fork 暫不跟。 | #263 合併或 issue 有結論。 |
 | [#267](https://github.com/KKKKhazix/AIHOT/issues/267) | 分享圖允許站點補充字體（補 Noto Sans SC 子集缺字）。本 fork 沒有自訂分享圖字體的需求；缺字只影響罕用字。 | 上游提出實作，或本 fork 站點出現分享圖缺字。 |
-| [#270](https://github.com/KKKKhazix/AIHOT/issues/270) | 使用者詢問公眾號與社媒信源為何常被阻擋；純提問、無缺陷、無 PR，不需動作。 | issue 出現缺陷結論或關聯 PR。 |
+| [#270](https://github.com/KKKKhazix/AIHOT/issues/270) | 使用者詢問公眾號與社媒信源為何常被阻擋；純提問、無缺陷、無 PR，不需動作。2026-10-26 上游維護者回覆並**關閉**（狀態由 open 變 closed）：公眾號走 `mp_account`（`DAJIALA_KEY`）、X 走 `x_search`，其他走 RSSHub／外部推送，設定見 `docs/sources.md`；仍無程式變更。 | 上游重開，或出現缺陷結論或關聯 PR。 |
+| [#271](https://github.com/KKKKhazix/AIHOT/issues/271) | 詢問飛書系統告警為何走應用機器人而非 Webhook，建議告警可選 Webhook。**不是缺陷、無 PR**：維護者 2026-10-26 回覆原因（內部群同時轉發帶截圖的反饋，圖片上傳只有應用機器人能做），「告警單獨走 Webhook 要先在產品上定」，尚無結論。本 fork 實況：`packages/backend/src/notify/feishu.ts:111-121` 的 `sendAlert` 只走 `FEISHU_ALERT_CHAT_ID`／`FEISHU_INTERNAL_CHAT_ID` 應用機器人，且 `FEISHU_INTERNAL_ENABLED` 預設關（`.env.example:73`）；本 fork 未啟用飛書，上游額度痛點不適用（判準七：理由的主詞是飛書個人免費企業的使用者，不是本 fork）。不移植、無需動作。 | 上游出現告警 Webhook 的 PR／commit，或本 fork 開啟 `FEISHU_INTERNAL_ENABLED`。 |
 
 已關閉的舊追蹤項（#67、#77、#86、#88）全部在上游關閉，結論見上節。#88（推理模型 `max_tokens`）已由 #105 的「推理模型額度」處理，workaround `LLM_EXTRA_JSON` 不再需要；README 已記載 `LLM_REASONING_TOKENS`。
 
 ## Branches, tags, releases
 
-- 上游分支：只有 `main`；無 tag、無 GitHub Release。
+- 上游分支：只有 `main`（2026-10-27 `git ls-remote` 仍為 `ce83484`，無新 commit）；無 tag、無 GitHub Release。
 - 本 fork 分支：只有 `main`（`ci/job-names-20261024`、`security/alerts-20261024`、`tmp-probe-delete` 已於 2026-10-25 清除）；無 tag、無 Release。
