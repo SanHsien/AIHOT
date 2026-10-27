@@ -13,7 +13,7 @@
 
 ### Security
 - 修上游持有程式的三個缺陷（分岔列見 `docs/DIVERGENCE.md`）：Agent Markdown 的連結文字補跳脫反斜線，外部標題不能再造出連結（CodeQL #13）；prefix 轉址把路徑當資料替換（CodeQL #15）；登入嘗試表修剪時保留全站計數，偽造 `X-Forwarded-For` 不能重置上限。
-- 其餘 38 筆 CodeQL 告警逐筆附 source/sink 理由關閉，判讀見 `docs/DECISIONS.md` 第 9 條。
+- 其餘 39 筆 CodeQL 告警逐筆附 source/sink 理由關閉，判讀見 `docs/DECISIONS.md` 第 9 條。
 
 ### Fixed
 - `fork-check` 的分岔檢查過去從未真正執行（CI 沒有上游基準 commit，檢查器印 `Skipping check.` 後 exit 0）：缺基準改回 exit 2，workflow 先抓上游 main。

@@ -16,7 +16,7 @@ This file records only the changes made by this fork; for upstream changes, see 
 
 ### Security
 - Fixed three defects in upstream-held code (rows in `docs/DIVERGENCE.md`): agent Markdown link text now escapes backslashes, so an outside title cannot open a link (CodeQL #13); prefix redirects treat the path as data (CodeQL #15); trimming the sign-in attempt table keeps the overall count, so forged `X-Forwarded-For` cannot reset the cap.
-- The other 38 CodeQL alerts were dismissed one by one with source/sink reasons; see item 9 of `docs/DECISIONS.md`.
+- The other 39 CodeQL alerts were dismissed one by one with source/sink reasons; see item 9 of `docs/DECISIONS.md`.
 - Early adoption of upstream security fix commits `e4478cb`, `879afa3`, `14fe1da`, `31fa181`:
   - Bump `source-map-js` to 1.2.2 (fixes GHSA-68fv-2mgg-jv7q DoS vulnerability).
   - Bump `@modelcontextprotocol/client` to 2.2.0 (fixes GHSA-6qxp-vccf-f47h credential leak vulnerability).
