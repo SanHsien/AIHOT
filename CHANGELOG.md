@@ -12,6 +12,14 @@
 - 刪除 `CLAUDE.md`，補充內容併入 `AGENTS.md`；所有 agent 只讀 `AGENTS.md`。
 
 ### Security
+- 修上游持有程式的三個缺陷（分岔列見 `docs/DIVERGENCE.md`）：Agent Markdown 的連結文字補跳脫反斜線，外部標題不能再造出連結（CodeQL #13）；prefix 轉址把路徑當資料替換（CodeQL #15）；登入嘗試表修剪時保留全站計數，偽造 `X-Forwarded-For` 不能重置上限。
+- 其餘 38 筆 CodeQL 告警逐筆附 source/sink 理由關閉，判讀見 `docs/DECISIONS.md` 第 9 條。
+
+### Fixed
+- `fork-check` 的分岔檢查過去從未真正執行（CI 沒有上游基準 commit，檢查器印 `Skipping check.` 後 exit 0）：缺基準改回 exit 2，workflow 先抓上游 main。
+- `check_divergence.py` 把被改名的上游檔案也算成分岔（原本 `R` 狀態會漏掉）。
+- `check_dependency_freshness.py`：加了 `# freshness-hold:` 的 Action 顯示 `HELD`，不再報 `CHECK FAILED`。
+- `dependency-freshness` workflow：列 Dependabot PR 失敗時標為 `CHECK FAILED`，不再當成「沒有 PR」。
 - 提前採納上游安全修補 commit `e4478cb`、`879afa3`、`14fe1da`、`31fa181`：
   - 升級 `source-map-js` 至 1.2.2（修復 GHSA-68fv-2mgg-jv7q DoS 漏洞）。
   - 升級 `@modelcontextprotocol/client` 至 2.2.0（修復 GHSA-6qxp-vccf-f47h 憑證外洩漏洞）。

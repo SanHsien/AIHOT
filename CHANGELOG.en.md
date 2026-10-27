@@ -15,10 +15,18 @@ This file records only the changes made by this fork; for upstream changes, see 
 - Removed `CLAUDE.md` and merged its notes into `AGENTS.md`; every agent now reads `AGENTS.md` only.
 
 ### Security
+- Fixed three defects in upstream-held code (rows in `docs/DIVERGENCE.md`): agent Markdown link text now escapes backslashes, so an outside title cannot open a link (CodeQL #13); prefix redirects treat the path as data (CodeQL #15); trimming the sign-in attempt table keeps the overall count, so forged `X-Forwarded-For` cannot reset the cap.
+- The other 38 CodeQL alerts were dismissed one by one with source/sink reasons; see item 9 of `docs/DECISIONS.md`.
 - Early adoption of upstream security fix commits `e4478cb`, `879afa3`, `14fe1da`, `31fa181`:
   - Bump `source-map-js` to 1.2.2 (fixes GHSA-68fv-2mgg-jv7q DoS vulnerability).
   - Bump `@modelcontextprotocol/client` to 2.2.0 (fixes GHSA-6qxp-vccf-f47h credential leak vulnerability).
   - Bump `sharp` to 0.35.5 (fixes GHSA-wq5f-xc86-pv6w librsvg dependency vulnerability).
+
+### Fixed
+- The divergence check in `fork-check` never actually ran (CI lacked the upstream base commit and the checker printed `Skipping check.` with exit 0): a missing base is now exit 2 and the workflow fetches upstream main first.
+- `check_divergence.py` counts a renamed upstream file as divergent (the `R` status used to slip through).
+- `check_dependency_freshness.py` shows an action held with `# freshness-hold:` as `HELD` instead of `CHECK FAILED`.
+- The `dependency-freshness` workflow marks a failed Dependabot PR listing as `CHECK FAILED` instead of "no pull requests".
 
 ### Added
 - Fork development scaffold and standards:

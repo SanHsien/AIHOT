@@ -38,24 +38,27 @@
    - **現行決定**：commit、PR、issue、branch、tag、release 的決策寫在 `docs/UPSTREAM.md`，SHA／狀態水位寫在 `tools/upstream_baseline.json`。
    - **理由**：相同 head 與狀態不應每次巡檢重新閱讀；只有內容或狀態改變才重審。
 
-9. **依賴警示在 fork 內修；CodeQL 警示分流，上游持有的程式碼只記錄不改**
-   - **現行決定**：2026-10-24 清掉全部 20 項 Dependabot 與 `npm audit` 的 4 項（見 `docs/DIVERGENCE.md` 的 manifest 列）；Dependabot PR #4–#10 由同一個 bump 涵蓋。34 項 CodeQL 警示逐項看過原始碼：沒有一項落在 fork 自有程式碼，因此不在 fork 內改上游持有的檔案（會新增分岔列），結論如下，待下次對齊上游後重掃。
-   - **誤報（28 項）**：
-     - `js/missing-rate-limiting` #16–#20、#22、#23、#25：登入有行程內限流（`tooManyAttempts`，每 IP 10 次／全站 50 次），後台路由要簽章 session，圖片代理要簽章，MCP 為公開唯讀；限流交給前置代理。#21、#24 見下方「真實但不修」。
-     - `js/insufficient-password-hash` #27–#29：HMAC-SHA256 只用來把兩邊補成等長再做 `timingSafeEqual`（#28、#29）與把 session 綁在密碼上（#27）；管理員密碼本來就在環境變數，沒有儲存的密碼雜湊可被離線爆破。
-     - `js/path-injection` #4–#6、`js/file-system-race` #31（static.ts）：檔名先過 `^[a-z0-9-]+\.(svg|png)$` 與 `^[\w.-]+\.(png|jpg|jpeg|webp)$`，不含路徑分隔字元；stat／readFile 之間的競態只會讓快取放一份稍舊的伺服器自有檔案。
-     - `js/xss-through-dom` #2（feedback.tsx）：`src` 是 `URL.createObjectURL(file)` 產生的 `blob:` 位址。
-     - `js/bad-tag-filter` #7、`js/incomplete-sanitization` #14（json-list.ts）：是從抓回的頁面取 JSON 與用管理員設定的變數名組 RegExp，不是輸出過濾。
-     - `js/incomplete-multi-character-sanitization` #9（detail.ts）：只為大綱取純文字，輸出仍由 React 跳脫。
-     - `js/incomplete-sanitization` #12（markdown.ts）、#13（agent.ts）、#15（http-policy.ts）：Markdown 輸出的跳脫風格、靜態規則表裡只有一個 `*`；非 HTML 邊界。
-     - `js/clear-text-logging` #26（init-env.ts）：一次性把產生的管理員密碼印給操作者，是文件寫明的行為。
-     - `js/file-access-to-http` #33（llm.ts）：API 金鑰本來就是設定，送往設定的 `LLM_BASE_URL`。
-     - 測試碼 #3、#8、#30、#34：只在測試裡對固定字串或本機暫時伺服器做斷言，不處理外部輸入。
-   - **真實但不修（6 項，影響低）**：
-     - `js/polynomial-redos` #1（ingest.ts `/^Bearer\s+(.+)$/i`）：正則確為二次方（16 KB 約 82 ms），但要讓 `$` 失敗必須有換行字元，Node 的 HTTP 解析器對 CR／LF 回 400、UTF-8 的 U+2028 會被拆成 latin1 位元組，實測從網路送不進來。
-     - `js/double-escaping` #10、#11（writing.ts、text.ts）：`&amp;` 先於 `&lt;` 還原，`&amp;lt;` 會變成 `<`；結果只進純文字欄位與 LLM 提示，不當 HTML 用。
-     - `js/file-system-race` #32（init-env.ts）：`existsSync` 後 `writeFileSync` 可被搶先建立的 `.env` 覆蓋；單人本機一次性腳本，修法是寫入加 `flag: "wx"`。
-     - `js/missing-rate-limiting` #21（ingest.ts）：令牌比對在限流之前，可無限次猜測；令牌至少 16 字且常數時間比較。上游較新版本已加入 `INGEST_RATE_LIMIT`。
-     - `js/missing-rate-limiting` #24（static.ts）：靜態檔案無應用層限流，交給前置代理。
-   - **重審條件**：下次合併上游後重跑 CodeQL；上述 6 項若上游已改就隨之消失，未改且仍在 fork 內被觸及時，修成最小補丁並加分岔列。fork 自有程式碼出現的警示一律在 fork 內修。
-   - **理由**：核心程式碼跟隨上游，逐項寫下判斷才不會每次重看；不為了讓警示變零而新增分岔。
+9. **依賴警示在 fork 內修；CodeQL 警示逐筆判讀，真缺陷修最小補丁，誤報附 source/sink 理由關閉**
+   - **現行決定**（2026-10-28 重判，取代 2026-10-24 的「上游程式只記錄不改」）：41 筆 open CodeQL 全部落在上游持有的檔案。逐筆讀原始碼後，能說出「什麼輸入會錯、錯成什麼」的就修，加分岔列與 `tests/fork-security-fixes.standalone.test.ts` 回歸測試；其餘在 GitHub 逐筆 dismiss，理由寫在該筆告警上，摘要如下。
+   - **修掉（3 項）**：
+     - #13 `js/incomplete-sanitization`（`publication/agent.ts` `linkText`）：先前判為「Markdown 跳脫風格」是錯的。標題 `x\](https://evil.example)` 會在給 AI 的 Markdown 造出外部連結；`6668f48` 連 `\` 一起跳脫。
+     - #15 `js/incomplete-sanitization`（`contracts/http-policy.ts`）：路徑尾段當成 `replace` 的替換字串，``/sources/a$`b`` 轉成 `/admin/sources/a/admin/sourcesb`；`634f90d` 改成函式替換。
+     - 判讀 #42／#43 時發現：`admin-auth.ts` 嘗試表滿 5000 筆時連全站計數一起清掉，偽造 `X-Forwarded-For` 可重置「50 次／15 分鐘」上限；`37b043e` 只清各 IP 的筆數。
+   - **誤報（false positive）**：
+     - `js/missing-rate-limiting` #17、#19、#20、#42、#43（admin-auth.ts）：#42／#43 密碼登入有行程內限流 `tooManyAttempts`（每 IP 10 次、全站 50 次／15 分鐘，`37b043e` 後全站上限不會被重置），CodeQL 不認得自寫限流；#17 `/api/auth/options` 只回兩個設定布林值；#19 `/api/auth/feishu`、#20 `/api/auth/callback` 是 OAuth 轉向與一次性 code 交換，要先過 state cookie 比對。
+     - `js/missing-rate-limiting` #22（admin.ts 截圖）：在 `adminHandler` 內，要有效管理員 session。#21（ingest.ts）：先比對至少 16 字的 `INGEST_TOKEN`（常數時間），且有 `INGEST_RATE_LIMIT`（docker compose 預設 10／分）。#23（media.ts）：先驗 HMAC 簽章與期限，未簽的請求不讀檔不抓圖。#44（mcp.ts）：公開唯讀端點，有 `bodyLimit`。#24（static.ts）：只讀站方自有檔案並有 ETag 快取；這幾類流量限制交給前置代理。
+     - `js/path-injection` #4、#6、#38（static.ts）：唯一的外部檔名來源是 `/contact/:file`，先過 `^[\w.-]+\.(png|jpg|jpeg|webp)$`，不含 `/` 或 `\`，`path.join` 不會離開 `uploads`／`brand/contact`；其他 `sendFile` 呼叫的路徑都是程式內寫死的。
+     - `js/file-system-race` #46（static.ts）：stat 與 readFile 之間檔案變了，只會讓快取存一份新內容配舊 mtime，下次 stat 就重讀；只讀、無寫入。
+     - `js/xss-through-dom` #2（feedback.tsx）：`src` 是 `URL.createObjectURL(file)` 的 `blob:` 位址，不是文字輸入。
+     - `js/insufficient-password-hash` #27、#28、#29（admin/auth.ts）：沒有儲存任何密碼雜湊。#28／#29 的 HMAC 只把兩邊變成等長再 `timingSafeEqual`；#27 是把 session 綁在目前密碼上的 HMAC。密碼本身在環境變數。
+     - `js/incomplete-sanitization` #12（markdown.ts）：表格儲存格先經 turndown，turndown 已把 `\` 跳脫成 `\\`，這裡只補 `|`；實測儲存格 `a\|b` 輸出 `a\\\|b`，欄數不變。
+     - `js/incomplete-sanitization` #14、`js/bad-tag-filter` #7（json-list.ts）：前者用管理員設定的變數名組 RegExp，後者是從抓回的頁面找 JSON script 區塊；都不是輸出過濾，漏抓只會讓該信源回 `FetchError`。
+     - `js/file-access-to-http` #47（llm.ts）：送出的是提示詞與設定的 API 金鑰，目的地是維護者設定的 `LLM_BASE_URL`，這就是功能本身。
+     - `js/clear-text-logging` #26（init-env.ts）：一次性把剛產生的管理員密碼印給操作者，檔頭與文件都寫明。
+   - **真實但不修（won't fix）**：
+     - `js/polynomial-redos` #1（ingest.ts `/^Bearer\s+(.+)$/i`）：要讓 `$` 失敗需要換行字元，Node 的 HTTP 解析器對 CR／LF 回 400；標頭上限 16 KB。
+     - `js/double-escaping` #41（writing.ts）：`&amp;lt;` 會還原成 `<`；結果只進 LLM 提示純文字，不當 HTML 輸出。
+     - `js/file-system-race` #32（init-env.ts）：`existsSync` 後 `writeFileSync`；單人本機一次性腳本，攻擊者要先能寫工作目錄。
+   - **測試碼（used in tests）**：#35、#36、#37 `js/reflected-xss` 是測試裡綁 `127.0.0.1` 的假伺服器；#45 `js/server-side-unvalidated-url-redirection` 是故意做轉址的測試假伺服器；#39、#40 是對固定 HTML 的斷言；#48–#54 `js/regex/missing-regexp-anchor` 是對已知輸出做 `assert.match`。都不處理外部輸入。
+   - **重審條件**：新告警逐筆判讀；上游改了上述檔案時，對照分岔列決定刪列或保留。
+   - **理由**：「上游程式不改」會把真缺陷（#13、#15、限流重置）一起放著；每項修正都小且附回歸測試，分岔表寫明上游修好就刪。
