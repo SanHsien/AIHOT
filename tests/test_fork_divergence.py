@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -86,6 +87,35 @@ class TestForkDivergence(unittest.TestCase):
             set(),
             f"Registered but not changed: {registered_not_changed}",
         )
+
+
+def _git(repo: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", *args],
+        cwd=repo, capture_output=True, text=True, encoding="utf-8", check=True,
+    )
+    return result.stdout.strip()
+
+
+class TestDivergenceAgainstGit(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.repo = Path(self._tmp.name)
+        _git(self.repo, "init", "-q")
+        (self.repo / "upstream.md").write_text("upstream\n" * 20, encoding="utf-8")
+        _git(self.repo, "add", ".")
+        _git(self.repo, "commit", "-q", "-m", "base")
+        self.base = _git(self.repo, "rev-parse", "HEAD")
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_renamed_upstream_file_is_divergent(self):
+        _git(self.repo, "mv", "upstream.md", "renamed.md")
+        _git(self.repo, "commit", "-q", "-m", "rename")
+        owned = checker.owned_files_at_base(self.base, self.repo)
+        pairs = checker.changed_since_base(self.base, self.repo)
+        self.assertIn("upstream.md", checker.compute_divergent_files(pairs, owned))
 
 
 if __name__ == "__main__":

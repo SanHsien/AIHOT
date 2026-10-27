@@ -66,7 +66,8 @@ def owned_files_at_base(base_sha: str, repo_dir: Path) -> set[str]:
 
 
 def changed_since_base(base_sha: str, repo_dir: Path) -> list[tuple[str, str]]:
-    result = run_git(["diff", "--name-status", base_sha, "--"], repo_dir)
+    # No rename detection: a renamed upstream file is a deleted one and must be registered.
+    result = run_git(["diff", "--name-status", "--no-renames", base_sha, "--"], repo_dir)
     if result.returncode != 0:
         raise DivergenceCheckError(f"git diff failed: {result.stderr.strip()}")
     pairs = []
@@ -93,7 +94,7 @@ def changed_since_base(base_sha: str, repo_dir: Path) -> list[tuple[str, str]]:
 def compute_divergent_files(pairs: list[tuple[str, str]], owned: set[str]) -> set[str]:
     divergent: set[str] = set()
     for status, path in pairs:
-        modified_or_deleted_upstream_file = status in ("M", "D") and path in owned
+        modified_or_deleted_upstream_file = status in ("M", "D", "T") and path in owned
         aliased_addition_for_a_changed_upstream_file = (
             status == "A" and path in RENAME_ALIASES and RENAME_ALIASES[path] in owned
         )
