@@ -38,7 +38,8 @@ export function stamp(at: string | Date, now = Date.now()): string {
   return `${day.slice(0, 4) === beijingDate(now).slice(0, 4) ? day.slice(5) : day} ${beijingTime(at)}`;
 }
 
-const linkText = (title: string) => title.replace(/([[\]])/g, "\\$1");
+// Backslashes too: a title ending in "\" must not escape the "]" that closes the link text.
+const linkText = (title: string) => title.replace(/([\\[\]])/g, "\\$1");
 const category = (key: string | null) => (key && isCategoryKey(key) ? CATEGORY_LABELS[key] : null);
 
 function itemLines(items: V1ItemPayload[]): string[] {

@@ -21,3 +21,4 @@
 | `apps/web/app/routes/item.tsx` | 目錄邊界鍵盤攔截只呼叫 `preventDefault`。 | 在 capture phase 攔截，且於雙動畫畫格後恢復頁面捲動位置。 | WebKit 仍可能在已 prevented 的 nested-scroll 邊界鍵盤事件後捲動文件。 | 上游以等價方式維持目錄邊界不連鎖捲動時刪除此列。 |
 | `apps/web/app/features/feed/FeedItem.tsx` | Phone card→item 導覽一律啟用 React Router view transition。 | Phone card 導覽停用 view transition，desktop 保留。 | WebKit 可使 deferred item route 的 view-transition update callback 逾時，URL／router 已返回 list 但 DOM 仍停在 reader。 | 上游含等價 phone fallback 時刪除此列。 |
 | `apps/web/tests/navigation-performance.test.ts` | 深讀返回只驗證 cards、anchor 與日期折疊。 | 加驗 router 已回 home，並拒絕 WebKit view-transition callback timeout。 | 鎖定 URL/router 與 DOM 分岔的回歸。 | 上游涵蓋等價 router/DOM 與 pageerror 回歸時刪除此列。 |
+| `packages/backend/src/publication/agent.ts` | `linkText` 只跳脫 `[`、`]`。 | 連反斜線一起跳脫。 | 外部來源的標題結尾若是 `\`，會把收尾的 `]` 變成字面字元：標題 `x\](https://evil.example)` 在給 AI 的 Markdown 裡造出一個指向外部的連結（CodeQL #13；`tests/fork-security-fixes.standalone.test.ts`）。 | 上游的 `linkText` 也跳脫 `\` 時刪除此列。 |
