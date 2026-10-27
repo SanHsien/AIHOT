@@ -56,17 +56,22 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CHECKER_NEEDS_ATTENTION: ${{ steps.deps.outputs.needs_attention }}
         run: |
+          needs_attention="$CHECKER_NEEDS_ATTENTION"
+          # A listing that failed is unchecked, not "no pull requests".
+          listed=true
           open_prs="$(gh pr list \
             --state open \
             --author app/dependabot \
-            --json number,title,url 2>/dev/null || echo '[]')"
-          open_pr_count="$(jq 'length' <<< "$open_prs" 2>/dev/null || echo '0')"
-          needs_attention="$CHECKER_NEEDS_ATTENTION"
+            --json number,title,url)" || listed=false
+          open_pr_count="$(jq 'length' <<< "$open_prs" 2>/dev/null)" || listed=false
           {
             echo
             echo "## Open Dependabot pull requests"
             echo
-            if [ "$open_pr_count" -eq 0 ]; then
+            if [ "$listed" != true ]; then
+              echo "- CHECK FAILED: could not list Dependabot pull requests"
+              needs_attention="true"
+            elif [ "$open_pr_count" -eq 0 ]; then
               echo "- None"
             else
               jq -r '.[] | "- [#\(.number) \(.title)](\(.url))"' <<< "$open_prs"
