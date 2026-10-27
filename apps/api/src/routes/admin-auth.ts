@@ -38,7 +38,8 @@ function over(key: string, limit: number, now: number): boolean {
 }
 function tooManyAttempts(ip: string): boolean {
   const now = Date.now();
-  if (attempts.size > 5000) attempts.clear();
+  // Trimming the per-client entries keeps the overall count, or forged addresses would reset it.
+  if (attempts.size > 5000) for (const key of attempts.keys()) if (key !== "all") attempts.delete(key);
   const perClient = over(`ip:${ip}`, 10, now);
   return over("all", 50, now) || perClient;
 }

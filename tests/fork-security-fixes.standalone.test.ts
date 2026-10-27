@@ -1,10 +1,13 @@
 // Fork 修補的回歸測試（docs/DIVERGENCE.md 對應列）：外部標題不能在給 AI 的 Markdown 裡造出連結、
-// 轉址路徑裡的 `$` 是資料不是替換樣板。
+// 轉址路徑裡的 `$` 是資料不是替換樣板、偽造來源位址灌滿限流表不能重置全站密碼嘗試上限。
 import "./setup.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import Fastify from "fastify";
+import { config } from "@aihot/backend/config";
 import { latestAnswer } from "@aihot/backend/publication/agent";
 import { resolveRedirect } from "@aihot/contracts/http-policy";
+import { registerAdminAuth } from "../apps/api/src/routes/admin-auth.ts";
 
 test("an item title cannot close its link text and open a link of its own", () => {
   const query = { mode: "all", window: "24h", category: null, limit: 10 } as const;
@@ -36,5 +39,29 @@ test("a redirected path keeps `$` sequences literally", () => {
   for (const tail of ["/a$`b", "/a$&b", "/a$'b", "/a$$b"]) {
     const decision = resolveRedirect(`/sources${tail}`, "");
     assert.equal(decision?.location, `/admin/sources${tail}`, tail);
+  }
+});
+
+test("forged client addresses cannot reset the overall password attempt cap", async () => {
+  const saved = config.adminPassword;
+  (config as { adminPassword: string | null }).adminPassword = "correct-horse-battery-staple";
+  const app = Fastify({ trustProxy: true });
+  registerAdminAuth(app);
+  await app.ready();
+  try {
+    let n = 0;
+    const attempt = async () => {
+      n++;
+      const ip = `10.${(n >> 16) & 255}.${(n >> 8) & 255}.${n & 255}`;
+      const r = await app.inject({ method: "POST", url: "/api/auth/password", headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-for": ip }, payload: "password=wrong-guess&return=/admin" });
+      return String(r.headers.location);
+    };
+    for (let i = 0; i < 50; i++) assert.match(await attempt(), /error=wrong/);
+    // 5000 more forged addresses: every one is refused, and the table grows past its size bound.
+    for (let i = 0; i < 5000; i++) assert.match(await attempt(), /error=too-many/);
+    assert.match(await attempt(), /error=too-many/, "the overall cap still holds after the table is trimmed");
+  } finally {
+    (config as { adminPassword: string | null }).adminPassword = saved;
+    await app.close();
   }
 });
