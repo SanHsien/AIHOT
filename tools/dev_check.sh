@@ -19,5 +19,8 @@ python tools/check_divergence.py
 echo "==> Fork divergence tests"
 python tests/test_fork_divergence.py
 
+echo "==> Dependency freshness checker tests"
+python tests/test_dependency_freshness.py
+
 echo ""
 echo "All checks passed successfully! Ready to push to main."

@@ -108,14 +108,15 @@ def parse_workflow_actions(text: str, source: str) -> list[dict[str, str]]:
     for match in _USES_RE.finditer(text):
         action, ref, comment = match.group(1), match.group(2), (match.group(3) or "").strip()
         hold = comment[len(HOLD_MARKER) :].strip() if comment.startswith(HOLD_MARKER) else ""
-        version_source = comment if comment else ref
-        version_match = _RELEASE_RE.match(version_source.lstrip("vV")) if not hold else None
+        # A held pin's comment is the hold reason, so its version can only come from the ref.
+        version_source = ref if hold else (comment or ref)
+        version_match = _RELEASE_RE.match(version_source.lstrip("vV"))
         minimum = version_match.group(0) if version_match else ""
         packages.append(
             {
                 "name": action,
                 "minimum": minimum,
-                "requirement": f"{action}@{comment or ref[:12]}",
+                "requirement": f"{action}@{ref[:12] if hold else comment or ref[:12]}",
                 "source": source,
                 "hold": hold,
                 "kind": "github-action",
@@ -242,7 +243,8 @@ def collect_status(
                 **package,
                 "latest": latest or "unknown",
                 "outdated": bool(minimum and latest and is_newer_version(latest, minimum)),
-                "check_failed": not minimum or latest is None,
+                # A hold says "do not chase this pin"; not knowing its version is no failed check.
+                "check_failed": not package.get("hold") and (not minimum or latest is None),
                 "deferred_reason": reason if deferred else "",
             }
         )
@@ -261,7 +263,7 @@ def _render_table(rows: list[dict[str, object]]) -> list[str]:
     for row in rows:
         if row["check_failed"]:
             status = "CHECK FAILED"
-        elif row.get("hold") and row["outdated"]:
+        elif row.get("hold"):
             status = f"HELD: {row['hold']}"
         elif row.get("deferred_reason") and row["outdated"]:
             status = f"DEFERRED at {row['latest']}: {row['deferred_reason']}"

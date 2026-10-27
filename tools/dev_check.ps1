@@ -52,4 +52,7 @@ Invoke-Step -Label "Upstream divergence check" -Exe $pythonExe -Arguments @("too
 # 6. Fork Divergence Contract Tests
 Invoke-Step -Label "Fork divergence tests" -Exe $pythonExe -Arguments @("tests/test_fork_divergence.py")
 
+# 7. Dependency Freshness Checker Tests
+Invoke-Step -Label "Dependency freshness checker tests" -Exe $pythonExe -Arguments @("tests/test_dependency_freshness.py")
+
 Write-Host "`nAll checks passed successfully! Ready to push to main." -ForegroundColor Green

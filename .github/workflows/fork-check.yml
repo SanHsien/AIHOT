@@ -47,6 +47,9 @@ jobs:
       - name: Fork divergence contract tests
         run: python tests/test_fork_divergence.py
 
+      - name: Dependency freshness checker tests
+        run: python tests/test_dependency_freshness.py
+
       - name: Typecheck
         run: npm run typecheck
 
