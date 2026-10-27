@@ -6,6 +6,7 @@
 ## [Unreleased]
 
 ### Changed
+- 同步上游 `ce83484..79d962e`（PR #273–#275）：告警可改走群組機器人 Webhook（`FEISHU_ALERT_WEBHOOK_URL`）、日報跨年日期帶年份、登入頁路徑辨識補 Devise／WordPress／副檔名。
 - 同步上游 `cc66cce..ce83484`（124 個 commit，4.0.0 引擎／站點分層、遷移約定、安全邊界與採集修正）；README、AGENTS 併入新結構並維持繁中。
 - 撤回 fork 先前移植的 PR #79／#83／#85：上游已各自解決（見 `docs/UPSTREAM.md`），分岔列刪除；`_aihot.initialBackfillOnly` 開關移除，行為改採上游內建規則。
 - 刪除 `CLAUDE.md`，補充內容併入 `AGENTS.md`；所有 agent 只讀 `AGENTS.md`。

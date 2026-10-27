@@ -4,9 +4,9 @@
   "branches": [
     "main"
   ],
-  "reviewed_through": "ce8348477438cce2b417c1403290a511c812a7c5",
-  "reviewed_date": "2026-10-27",
-  "reviewed_pr_through": 269,
+  "reviewed_through": "79d962ea96c7f2ed0d2df9b01d9cf00b5550d1d0",
+  "reviewed_date": "2026-10-28",
+  "reviewed_pr_through": 275,
   "reviewed_issue_through": 271,
   "latest_tag": null,
   "latest_release": null,
@@ -15,9 +15,8 @@
   },
   "reviewed_open_issues": [
     261,
-    267,
-    271
+    267
   ],
-  "notes": "Upstream main commits through ce83484 and tickets through PR #269 / issue #271 were reviewed on 2026-10-27 (#270 closed upstream 2026-10-26; #271 is a question, no defect). Decisions are recorded in docs/UPSTREAM.md. Review again only when main, a tracked open PR head SHA, issue state/content, branch inventory, tags, or releases change.",
+  "notes": "Upstream main commits through 79d962e and tickets through PR #275 / issue #271 were reviewed on 2026-10-28 (#271 closed upstream by aa8e5b1 / PR #273; #272 returns 404). Decisions are recorded in docs/UPSTREAM.md. Review again only when main, a tracked open PR head SHA, issue state/content, branch inventory, tags, or releases change.",
   "decision_log": "docs/UPSTREAM.md"
 }

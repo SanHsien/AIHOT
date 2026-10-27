@@ -9,6 +9,7 @@ This file records only the changes made by this fork; for upstream changes, see 
 ## [Unreleased]
 
 ### Changed
+- Synced upstream `ce83484..79d962e` (PR #273–#275): alerts may go to a group bot webhook (`FEISHU_ALERT_WEBHOOK_URL`), daily-report dates of another year carry the year, sign-in path detection covers Devise, WordPress and file extensions.
 - Synced upstream `cc66cce..ce83484` (124 commits: 4.0.0 engine/site split, migration rules, security boundaries, collection fixes); README and AGENTS carry the new structure.
 - Dropped the earlier ports of PR #79/#83/#85: upstream solved each itself (see `docs/UPSTREAM.md`), so the divergence rows are gone; the `_aihot.initialBackfillOnly` switch is removed in favour of upstream's built-in rule.
 - Removed `CLAUDE.md` and merged its notes into `AGENTS.md`; every agent now reads `AGENTS.md` only.
