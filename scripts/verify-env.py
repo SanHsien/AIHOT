@@ -5,8 +5,7 @@ Checks:
 - Python version >= 3.10
 - Node.js version >= 24
 - npm availability
-- Git remotes (origin = SanHsien/AIHOT)
-- GitHub CLI default repo
+- Git remotes (origin = SanHsien/AIHOT; upstream = KKKKhazix/AIHOT is reported, not required)
 - Key scaffold files presence (.gitattributes, docs/DIVERGENCE.md, AGENTS.md, etc.)
 """
 
