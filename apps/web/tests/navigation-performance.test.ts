@@ -13,6 +13,7 @@
 import assert from "node:assert/strict";
 import { before, after, test } from "node:test";
 import { chromium, webkit, expect, type Browser } from "@playwright/test";
+import type { DataRouter } from "react-router";
 import type { ReportDetail } from "@aihot/contracts/site";
 import { FIXTURE_AT as at, fakeApi, feedItem, itemDetail, startWebServer, visit, type WebServer } from "./web-server.ts";
 
@@ -279,6 +280,8 @@ test('reader enhancements wait for visible code and update only the picture that
 test('deep reading returns to its anchor, including folded dates',async()=>{
   const context=await safari.newContext({viewport:{width:390,height:844}});
   const page=await context.newPage();
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
   try{
     await visit(page,origin+'/?tag=long-reading');
     await expect(page.locator('[data-card-key]')).toHaveCount(180);
@@ -295,5 +298,11 @@ test('deep reading returns to its anchor, including folded dates',async()=>{
     await expect(page.locator('[data-card-key]')).toHaveCount(120);
     await expect.poll(()=>page.locator(`[data-card-key="${before.key}"]`).evaluate((e,top)=>Math.abs(e.getBoundingClientRect().top-top),before.top)).toBeLessThan(2);
     await expect(page.getByRole('button',{name:'展开10月4日',exact:true})).toBeVisible();
+    const backState=await page.evaluate(()=>{
+      const state=(globalThis as {__reactRouterDataRouter?:DataRouter}).__reactRouterDataRouter?.state;
+      return {pathname:state?.location.pathname,search:state?.location.search,matches:state?.matches.map((match:{route:{id:string}})=>match.route.id),cards:document.querySelectorAll('[data-card-key]').length};
+    });
+    assert.deepEqual(backState,{pathname:'/',search:'?tag=long-reading',matches:['root','routes/home'],cards:120});
+    assert.equal(pageErrors.some(message=>message.includes('View transition update callback timed out')),false);
   }finally{await context.close();}
 });

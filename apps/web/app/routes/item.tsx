@@ -120,12 +120,16 @@ function ArticleOutline({ outline }: { outline: SiteItemDetail["outline"] }) {
     if (nav.scrollHeight <= nav.clientHeight || e.altKey || e.ctrlKey || e.metaKey) return;
     const up = ["ArrowUp", "PageUp", "Home"].includes(e.key) || (e.key === " " && e.shiftKey);
     const down = ["ArrowDown", "PageDown", "End"].includes(e.key) || (e.key === " " && !e.shiftKey);
-    // WebKit can chain keyboard scrolling even with overscroll-behavior: contain.
-    if ((up && nav.scrollTop <= 0) || (down && nav.scrollTop + nav.clientHeight >= nav.scrollHeight - 1)) e.preventDefault();
+    // WebKit can still move the document after a prevented keyboard event at a nested scroll edge.
+    if ((up && nav.scrollTop <= 0) || (down && nav.scrollTop + nav.clientHeight >= nav.scrollHeight - 1)) {
+      const { scrollX, scrollY } = window;
+      e.preventDefault();
+      requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(scrollX, scrollY)));
+    }
   };
   return (
     <RailSection title="本文目录" shrink>
-      <nav ref={nav} aria-label="本文目录" tabIndex={overscroll ? 0 : undefined} onKeyDown={containKeys} className={`scrollbar-thin min-h-[calc(6*(12.5px*1.375+8px))] overflow-y-auto ${overscroll}`}>
+      <nav ref={nav} aria-label="本文目录" tabIndex={overscroll ? 0 : undefined} onKeyDownCapture={containKeys} className={`scrollbar-thin min-h-[calc(6*(12.5px*1.375+8px))] overflow-y-auto ${overscroll}`}>
         <ol className="space-y-0.5 border-l border-line">
           {outline.map((o) => (
             <li key={o.id}>

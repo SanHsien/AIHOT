@@ -44,12 +44,16 @@ test("outline keyboard scrolling stays inside its boundary in WebKit", async () 
     body: { zh: outline.map(o => `<h2 id="${o.id}">${o.text}</h2><p>${"固定正文。".repeat(100)}</p>`).join(""), original: null, zhKind: "original", complete: true },
   });
   const web = await startWebServer(fakeApi(url => url.pathname === "/api/site/items/outline-keys" ? item : undefined));
-  const browser = await webkit.launch();
+  let browser: Awaited<ReturnType<typeof webkit.launch>> | undefined;
   try {
+    browser = await webkit.launch();
     const page = await browser.newPage({ viewport: { width: 1366, height: 768 }, reducedMotion: "reduce" });
     await visit(page, web.origin + "/items/outline-keys");
     const nav = page.getByRole("navigation", { name: "本文目录" });
     await expect(nav).toBeVisible();
+    await expect(nav).toHaveAttribute("tabindex", "0");
+    const dimensions = await nav.evaluate((n) => ({ clientHeight: n.clientHeight, scrollHeight: n.scrollHeight }));
+    assert.ok(dimensions.scrollHeight > dimensions.clientHeight, `the outline is scrollable (${JSON.stringify(dimensions)})`);
     for (const [boundary, keys] of [["end", ["End", "PageDown", "ArrowDown", "Space"]], ["start", ["Home", "PageUp", "ArrowUp", "Shift+Space"]]] as const) {
       for (const key of keys) {
         await page.evaluate(() => window.scrollTo(0, 800));
@@ -68,7 +72,7 @@ test("outline keyboard scrolling stays inside its boundary in WebKit", async () 
     await page.keyboard.press("PageDown");
     await expect.poll(() => nav.evaluate(n => n.scrollTop)).toBeGreaterThan(0);
   } finally {
-    await browser.close();
+    await browser?.close();
     await web.stop();
   }
 });

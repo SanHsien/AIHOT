@@ -17,3 +17,7 @@
 | `packages/backend/package.json` | 依賴 `zod: 4.6.5`（其餘與本 fork 一致）。 | `zod` 升至 `4.6.7`。 | 安全修補（GHSA-mrhx-c7xc-m3w5）。 | 上游的 `zod` 已 ≥ `4.6.6` 時刪除此列，否則保留。 |
 | `apps/api/package.json` | 依賴 `zod: 4.6.5`。 | `zod` 升至 `4.6.7`。 | 安全修補（GHSA-mrhx-c7xc-m3w5）。 | 上游的 `zod` 已 ≥ `4.6.6` 時刪除此列，否則保留。 |
 | `package-lock.json` | 上游 lockfile（`undici` 7.30.0、`fast-uri` 3.1.8／4.2.1、`zod` 4.6.5）。 | 依本 fork manifest 重生；傳遞依賴 `undici`（cheerio 底下）升至 `7.30.1`、`fast-uri` 升至 `3.1.9`／`4.2.3`，`zod` 4.6.7。 | 清除 `npm audit` 全部項目（GHSA-xjj6-f33q-929c 等）。 | 整樹同步時以上游 lockfile 為底，重做 `npm install --package-lock-only` 與 `npm audit`；上游已含這些版本時刪除此列。 |
+| `apps/web/tests/article-outline.test.ts` | WebKit browser launch 在 fixture cleanup 區塊外。 | 將 launch 納入既有 `try/finally`，失敗仍關閉本機 fake API 與 web server。 | 避免缺少瀏覽器時測試程序遺留 localhost server。 | 上游含等價 cleanup 時刪除此列。 |
+| `apps/web/app/routes/item.tsx` | 目錄邊界鍵盤攔截只呼叫 `preventDefault`。 | 在 capture phase 攔截，且於雙動畫畫格後恢復頁面捲動位置。 | WebKit 仍可能在已 prevented 的 nested-scroll 邊界鍵盤事件後捲動文件。 | 上游以等價方式維持目錄邊界不連鎖捲動時刪除此列。 |
+| `apps/web/app/features/feed/FeedItem.tsx` | Phone card→item 導覽一律啟用 React Router view transition。 | Phone card 導覽停用 view transition，desktop 保留。 | WebKit 可使 deferred item route 的 view-transition update callback 逾時，URL／router 已返回 list 但 DOM 仍停在 reader。 | 上游含等價 phone fallback 時刪除此列。 |
+| `apps/web/tests/navigation-performance.test.ts` | 深讀返回只驗證 cards、anchor 與日期折疊。 | 加驗 router 已回 home，並拒絕 WebKit view-transition callback timeout。 | 鎖定 URL/router 與 DOM 分岔的回歸。 | 上游涵蓋等價 router/DOM 與 pageerror 回歸時刪除此列。 |
