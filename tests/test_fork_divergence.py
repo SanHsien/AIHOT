@@ -117,6 +117,16 @@ class TestDivergenceAgainstGit(unittest.TestCase):
         pairs = checker.changed_since_base(self.base, self.repo)
         self.assertIn("upstream.md", checker.compute_divergent_files(pairs, owned))
 
+    def test_missing_base_commit_fails_the_check(self):
+        other = Path(self._tmp.name) / "other"
+        other.mkdir()
+        _git(other, "init", "-q")
+        result = subprocess.run(
+            [sys.executable, str(REPO_ROOT / "tools" / "check_divergence.py"), "--repo-dir", str(other)],
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        self.assertEqual(result.returncode, 2, result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

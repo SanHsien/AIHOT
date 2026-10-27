@@ -209,15 +209,17 @@ def main() -> int:
         return 2
     base_sha = baseline["reviewed_through"]
 
+    # The fork shares no history with upstream, so a plain clone lacks the base commit. Skipping
+    # would report a check that never ran as passed; fail instead and say how to get it.
     if not base_commit_available(base_sha, args.repo_dir):
         warning = (
-            f"WARNING: base commit {base_sha[:7]} is not available in this local "
-            "repository. Skipping check."
+            f"ERROR: base commit {base_sha[:7]} is not available in this local repository; "
+            "fetch upstream first (git fetch https://github.com/KKKKhazix/AIHOT.git main)."
         )
         print(warning)
         if args.json:
             print(render_json(base_sha, set(), set(), set(), set(), warning=warning))
-        return 0
+        return 2
 
     try:
         owned = owned_files_at_base(base_sha, args.repo_dir)

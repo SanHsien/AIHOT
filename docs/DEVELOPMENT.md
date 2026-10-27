@@ -94,7 +94,8 @@ npm run build -w @aihot/web
 # 3. 前端單元測試
 node --test apps/web/tests/*.test.ts
 
-# 4. 上游分岔登記比對（與 docs/DIVERGENCE.md 100% 一致）
+# 4. 上游分岔登記比對（與 docs/DIVERGENCE.md 100% 一致）；fork 與上游沒有共同歷史，
+#    clone 裡沒有基準 commit 時檢查回 exit 2，先 git fetch upstream
 python tools/check_divergence.py
 
 # 5. 分岔檢查器本身之單元合約測試

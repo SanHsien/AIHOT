@@ -37,6 +37,10 @@ jobs:
       - name: Verify environment
         run: python scripts/verify-env.py
 
+      # The fork shares no history with upstream: the reviewed base commit only exists there.
+      - name: Fetch upstream base
+        run: git fetch --no-tags https://github.com/KKKKhazix/AIHOT.git main
+
       - name: Upstream divergence check
         run: python tools/check_divergence.py
 
