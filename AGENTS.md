@@ -70,3 +70,7 @@ node scripts/smoke.ts --base http://localhost:3000
 ## 上游 PR 規則（僅在維護者明確同意回貢時適用）
 
 要把改動提回 `KKKKhazix/AIHOT` 時先讀上游 `CONTRIBUTING.md`：只收對所有站都成立的改進，新開關與新設定入口先開 Issue；加函式或設定前先搜既有實作；依賴與鎖檔、`AGENTS.md`、`CONTRIBUTING.md`、`SECURITY.md`、規則目錄與二進制檔不收外部 PR 修改。
+
+## 路線圖
+
+- `ROADMAP.md` 是本 repo 後續工作的單一真相源。完成或新增工作時，在同一個 commit 更新它：做完的列刪掉、新工作加進去。不要在其他文件另列待辦。
