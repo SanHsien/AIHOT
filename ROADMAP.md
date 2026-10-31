@@ -4,12 +4,11 @@
 > 現況段的數字是 2026-10-29 依 `main` `94a3df150d2b` 查的快照，開工前先重查 GitHub。
 
 ## 現況
-這是以信源採集、模型精選與自動成刊為核心的行業網站框架 fork（[AGENTS.md:3](AGENTS.md)）。2026-10-29 `gh` 查詢記錄各主要 workflow 最近結果成功、開啟中的安全告警為 0；issues 停用，未查到 issue（2026-10-29 `gh` 查詢）。安全修正與 CI 分岔檢查已有驗證，但 REVIEW 部分表格與上游紀錄仍殘留前一輪敘述（[REVIEW.md:30](REVIEW.md)、[docs/UPSTREAM.md:38](docs/UPSTREAM.md)）。
+這是以信源採集、模型精選與自動成刊為核心的行業網站框架 fork（[AGENTS.md:3](AGENTS.md)）。2026-10-29 `gh` 查詢記錄各主要 workflow 最近結果成功、開啟中的安全告警為 0；issues 停用，未查到 issue（2026-10-29 `gh` 查詢）。安全修正與 CI 分岔檢查已有驗證，REVIEW 驗證證據表已校正，但上游紀錄仍殘留前一輪敘述（[docs/UPSTREAM.md:38](docs/UPSTREAM.md)）。
 
 ## 近期：可以直接動手
 | 項目 | 為什麼 | 驗收方式 | 建議執行者 | 證據 |
 | --- | --- | --- | --- | --- |
-| 校正 REVIEW 的驗證證據表 | 摘要已更新，表格仍保留舊分岔與舊測試結果 | 對照最新 Check、Fork Quality & Divergence Check 的實際輸出，更新證據所屬 SHA；每個數字能追到 run，不把舊結果標成最新 | Claude Sonnet | [REVIEW.md:15](REVIEW.md)、[REVIEW.md:30](REVIEW.md)；深掃報告（2026-10-27）「推送後」：CI run 40570939094 為 14 diverge／14 registered |
 | 修正上游審查文件的零產品分岔前提 | 已有安全與導航修正，舊前提不再成立 | `docs/UPSTREAM.md` 的保留分岔與 closed PR 判準對齊 `docs/DIVERGENCE.md`；逐筆理由仍留在既有決策，不複製成本檔的待辦 | Codex | [docs/UPSTREAM.md:28](docs/UPSTREAM.md)、[docs/UPSTREAM.md:38](docs/UPSTREAM.md)；[docs/DECISIONS.md:63](docs/DECISIONS.md) |
 
 ## 中期：等條件成立再做

@@ -20,16 +20,19 @@
 
 ## 驗證證據清單
 
-| 驗證項目 | 執行指令 | 實際結果 |
-|---|---|---|
-| Node.js 依賴鎖定 | `npm ci` | 成功；`npm audit` 0 項 |
-| TypeScript 型別檢查 | `npm run typecheck` | 0 error |
-| 前端 SSR 建置 | `npm run build -w @aihot/web` | 成功 |
-| 前端測試（不含瀏覽器） | `node --test apps/web/tests/*.test.ts` | 非瀏覽器項目 PASS；瀏覽器項目本機缺 WebKit／新版 Chromium，以 CI 為準 |
-| rss 專屬測試 | `node --test tests/rss-summary-body.test.ts` | 1 筆 PASS |
-| 上游分岔比對 | `python tools/check_divergence.py` | 7 upstream files diverge, 100% matched |
-| 分岔檢查器合約測試 | `python tests/test_fork_divergence.py` | 6 筆 PASS |
-| 依賴新鮮度 | `python tools/check_dependency_freshness.py` | exit 0（setup-node 為已登記延後） |
+| 驗證項目 | 執行指令 | 實際結果 | 證據所屬 SHA / CI Run |
+|---|---|---|---|
+| Node.js 依賴鎖定 | `npm ci` | 成功（CI 以 `--no-audit` 執行；本機 2026-10-29 `npm audit --package-lock-only` 為 0 項，無 run 證據） | `f10c456`（Check run 40745313346） |
+| TypeScript 型別檢查 | `npm run typecheck` | 0 error | `f10c456`（Check run 40745313346、Fork Quality run 40745313375） |
+| 前端 SSR 建置 | `npm run build -w @aihot/web` | 成功 | `f10c456`（Check run 40745313346、Fork Quality run 40745313375） |
+| 前端測試（含瀏覽器） | `node --test apps/web/tests/*.test.ts` | 64 筆 PASS（本機非瀏覽器項目通過、瀏覽器項目缺 WebKit；CI 64 筆全綠） | `f10c456`（Check run 40745313346） |
+| 後端整合測試 | `DATABASE_URL=... npm test` | 950 筆 PASS（本機缺 PostgreSQL，交由 CI 驗證） | `f10c456`（Check run 40745313346） |
+| rss 專屬測試 | `node --test tests/rss-summary-body.test.ts` | 1 筆 PASS | `f10c456`（Check run 40745313346） |
+| 站點與 MCP 檢查 | `node scripts/smoke.ts` / `node scripts/mcp-check.ts` | all checks passed / MCP contract check passed | `f10c456`（Check run 40745313346） |
+| 上游分岔比對 | `python tools/check_divergence.py` | 14 upstream files diverge, 14 registered（100% matched） | `f10c456`（Fork Quality run 40745313375；`94a3df1` run 40570939094） |
+| 分岔檢查器合約測試 | `python tests/test_fork_divergence.py` | 8 筆 PASS | `f10c456`（Fork Quality run 40745313375；`94a3df1` run 40570939094） |
+| 分岔依賴測試 | `python tests/test_dependency_freshness.py` | 2 筆 PASS | `f10c456`（Fork Quality run 40745313375） |
+| 依賴新鮮度 | `python tools/check_dependency_freshness.py` | exit 0（setup-node 為已登記延後） | `94a3df1`（Dependency freshness run 40570939136） |
 
 ---
 
