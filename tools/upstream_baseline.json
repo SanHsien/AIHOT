@@ -5,18 +5,13 @@
     "main"
   ],
   "reviewed_through": "79d962ea96c7f2ed0d2df9b01d9cf00b5550d1d0",
-  "reviewed_date": "2026-10-28",
-  "reviewed_pr_through": 275,
-  "reviewed_issue_through": 271,
+  "reviewed_date": "2026-11-02",
+  "reviewed_pr_through": 322,
+  "reviewed_issue_through": 320,
   "latest_tag": null,
   "latest_release": null,
-  "reviewed_open_prs": {
-    "263": "656564fdc86448ea2912b9f553bd068ee95d4bd8"
-  },
-  "reviewed_open_issues": [
-    261,
-    267
-  ],
-  "notes": "Upstream main commits through 79d962e and tickets through PR #275 / issue #271 were reviewed on 2026-10-28 (#271 closed upstream by aa8e5b1 / PR #273; #272 returns 404). Decisions are recorded in docs/UPSTREAM.md. Review again only when main, a tracked open PR head SHA, issue state/content, branch inventory, tags, or releases change.",
+  "reviewed_open_prs": {},
+  "reviewed_open_issues": [],
+  "notes": "Upstream main commits through 79d962e were adopted and reviewed on 2026-10-28 (#271 closed upstream by aa8e5b1 / PR #273; #272 returns 404). 2026-11-02: PR #276-#322 and issue #276-#320 were triaged one by one, but the commit watermark is deliberately NOT advanced: 40 upstream commits (79d962e..6e0cfaf, 212 files, 4 DB migrations) need a whole-tree adoption first, because tools/check_divergence.py treats reviewed_through as the tree baseline; see docs/UPSTREAM.md (2026-11-02) and ROADMAP.md. PR #263 was merged upstream on 2026-11-01 (823db74) and issues #261/#267 are closed, so the tracked open lists are now empty. Decisions are recorded in docs/UPSTREAM.md. Review again only when main, a tracked open PR head SHA, issue state/content, branch inventory, tags, or releases change.",
   "decision_log": "docs/UPSTREAM.md"
 }

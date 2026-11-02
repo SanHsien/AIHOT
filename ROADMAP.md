@@ -9,13 +9,12 @@
 ## 近期：可以直接動手
 | 項目 | 為什麼 | 驗收方式 | 建議執行者 | 證據 |
 | --- | --- | --- | --- | --- |
+| 整樹採納上游 `79d962e..6e0cfaf`（40 個 commit、212 檔、+4107／-1728、4 個資料庫遷移），含已合併的 #263 全文譯文入口與 #291 站點補充字體 | commit 水位卡在 `79d962e`，`python tools/check_upstream_updates.py --strict` 持續 exit 1；`check_divergence.py` 以該水位為基準，只能整樹採納才能推進，不能只挑幾筆。含 issue #278（admin cookie Secure，fork 的 `admin-auth.ts:26` 有同一缺陷）與 #282（部分政務站 TLS 握手）的修正 | 照上一輪做法把差量以 3-way 套到 fork 樹，逐一重做 DIVERGENCE 已登記的分岔檔（`admin-auth.ts`、`item.tsx`、`FeedItem.tsx`、`http-policy.ts`、兩個 `package.json`、lock、README、AGENTS）；`npm run typecheck`、`npm run build -w @aihot/web`、`node --test apps/web/tests/*.test.ts`、`python tools/check_divergence.py`、`python tests/test_fork_divergence.py` 全綠；備有 PostgreSQL 時加跑整合測試與 4 個遷移；之後推進 commit 水位、`--strict` exit 0 | Codex | [docs/UPSTREAM.md](docs/UPSTREAM.md) 的 2026-11-02 一節（逐 commit／PR／issue 裁決與工作量依據） |
 | 讓 agent 輸出帶站內時間（`timelineAt`） | 服務端以 `timeline_at`／`sort_at` 判斷視窗與排序，但 agent 文字只印 `publishedAt`；兩者差數小時時，依「最近 N 小時」自行過濾的 agent 會誤刪視窗內條目（上游 #194 的 `itemTimeBits` 是同一修法） | `V1ItemPayload` 與 v1 OpenAPI 加可選 `timelineAt`；`itemLines` 輸出「站內時間」，差距 ≥ 1 分鐘才另列原文發布時間，舊帳本 payload 缺欄位時退回現狀；`BRIEF_HINTS` 加按站內時間過濾的提示；補一條 `publishedAt` 早於 `timelineAt` 數小時的回歸測試；`linkText` 反斜線跳脫與 `fork-security-fixes.standalone.test.ts` 仍綠；不得整段套用 #194 的 hunk | Codex | [docs/UPSTREAM.md](docs/UPSTREAM.md) 的 #194 條目；`packages/backend/src/publication/agent.ts:48`、`publish.ts:91-105`、`v1.ts:47-48` |
 
 ## 中期：等條件成立再做
 | 項目 | 觸發條件 | 驗收方式 | 建議執行者 | 證據 |
 | --- | --- | --- | --- | --- |
-| 重評全文譯文入口 | 上游 #263 head 或狀態變動，或 #261 有結論 | 讀現行 diff 與寫入邊界，採用須通過型別、網頁、後端整合及分岔檢查；未採用則記具體理由 | Codex | [docs/UPSTREAM.md:34](docs/UPSTREAM.md)、[docs/UPSTREAM.md:44](docs/UPSTREAM.md) |
-| 處理分享圖缺字 | 上游 #267 出現實作，或 fork 實際分享圖缺字 | 用原缺字文字重產分享圖，字形可見、既有圖像流程正常 | Codex | [docs/UPSTREAM.md:45](docs/UPSTREAM.md) |
 | 建立自訂行業站與選文校準 | 維護者確認品牌、信源、條款與標註樣本 | 依 customize 與 selection 文件完成設定、跑標註評測與本機 smoke；開啟外部採集及付費模型前確認預算 | 維護者 | [AGENTS.md:20](AGENTS.md)、[AGENTS.md:22](AGENTS.md)、[README.md:94](README.md) |
 | 收斂上游已修好的 fork 補丁 | 上游修改對應安全或導航檔案 | 比較分岔行為，等效修正才刪 fork 補丁與登記列；相關回歸及 `python tools/check_divergence.py` 通過 | Codex | [docs/DECISIONS.md:63](docs/DECISIONS.md)、[AGENTS.md:12](AGENTS.md) |
 
