@@ -97,6 +97,7 @@ export interface V1ItemPayload {
   links: { aihot: string; original: string };
   publishedAt: string | null;
   discoveredAt: string;
+  timelineAt?: string;
   category: string | null;
   score: number | null;
   selected: boolean;
@@ -132,7 +133,7 @@ function round1(n: number | null): number | null {
 
 export function v1Payload(p: {
   articleId: string; title: string; originalTitle: string | null; summary: string | null; sourceName: string; url: string;
-  publishedAt: Date | null; discoveredAt: Date; category: string | null; score: number | null; selected: boolean; reason: string | null;
+  publishedAt: Date | null; discoveredAt: Date; timelineAt?: Date | string | null; category: string | null; score: number | null; selected: boolean; reason: string | null;
 }): V1ItemPayload {
   const aihot = itemUrl(p.articleId);
   return {
@@ -144,6 +145,7 @@ export function v1Payload(p: {
     links: { aihot, original: p.url },
     publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,
     discoveredAt: p.discoveredAt.toISOString(),
+    ...(p.timelineAt ? { timelineAt: typeof p.timelineAt === "string" ? p.timelineAt : p.timelineAt.toISOString() } : {}),
     category: toPublicApiCategory(p.category),
     score: p.score === null ? null : Math.round(p.score),
     selected: p.selected,
@@ -194,9 +196,9 @@ async function settleSeats(tx: Tx, factId: number | null, self: string | null, n
 /** Brings one article's place in the selected sync ledger in line with its publication. */
 async function syncLedger(tx: Tx, articleId: string, now: Date): Promise<"upsert" | "remove" | null> {
   const [p] = await tx<Array<{ selected: boolean; visibility: string; seat: boolean; title: string; original_title: string | null; summary: string | null;
-    url: string; published_at: Date | null; discovered_at: Date; category: string | null; score: string | number | null; reason: string | null;
+    url: string; published_at: Date | null; discovered_at: Date; timeline_at: Date; category: string | null; score: string | number | null; reason: string | null;
     source_name: string }>>`
-    SELECT p.selected, p.visibility, p.seat, p.title, p.original_title, p.summary, p.url, p.published_at, p.discovered_at, p.category,
+    SELECT p.selected, p.visibility, p.seat, p.title, p.original_title, p.summary, p.url, p.published_at, p.discovered_at, p.timeline_at, p.category,
            p.score, p.reason, s.name AS source_name
     FROM publications p JOIN sources s ON s.id = p.source_id WHERE p.article_id = ${articleId}`;
   if (!p) return null;
@@ -204,7 +206,7 @@ async function syncLedger(tx: Tx, articleId: string, now: Date): Promise<"upsert
   if (p.selected && p.visibility === "public" && p.seat) {
     const payload = v1Payload({
       articleId, title: p.title, originalTitle: p.original_title, summary: p.summary, sourceName: p.source_name, url: p.url,
-      publishedAt: p.published_at, discoveredAt: p.discovered_at, category: p.category, score: p.score === null ? null : Number(p.score), selected: true, reason: p.reason,
+      publishedAt: p.published_at, discoveredAt: p.discovered_at, timelineAt: p.timeline_at, category: p.category, score: p.score === null ? null : Number(p.score), selected: true, reason: p.reason,
     });
     const payloadHash = sha256(stableJson(payload));
     if (state?.in_set && state.payload_hash === payloadHash) return null;

@@ -3475,6 +3475,10 @@
             "type": "string",
             "format": "date-time"
           },
+          "timelineAt": {
+            "type": "string",
+            "format": "date-time"
+          },
           "category": {
             "type": [
               "string",

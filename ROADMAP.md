@@ -4,13 +4,12 @@
 > 現況段的數字是 2026-10-29 依 `main` `94a3df150d2b` 查的快照，開工前先重查 GitHub。
 
 ## 現況
-這是以信源採集、模型精選與自動成刊為核心的行業網站框架 fork（[AGENTS.md:3](AGENTS.md)）。2026-10-29 `gh` 查詢記錄各主要 workflow 最近結果成功、開啟中的安全告警為 0；issues 停用，未查到 issue（2026-10-29 `gh` 查詢）。安全修正與 CI 分岔檢查已有驗證，REVIEW 驗證證據表已校正；上游審查文件已對齊現行安全與導航分岔，closed PR 依實際缺陷與分岔變動重審（[docs/UPSTREAM.md](docs/UPSTREAM.md)）。
+這是以信源採集、模型精選與自動成刊為核心的行業網站框架 fork（[AGENTS.md:3](AGENTS.md)）。2026-10-29 `gh` 查詢記錄各主要 workflow 最近結果成功、開啟中的安全告警為 0；issues 停用，未查到 issue（2026-10-29 `gh` 查詢）。安全修正與 CI 分岔檢查已有驗證，REVIEW 驗證證據表已校正；上游審查文件已對齊現行安全與導航分岔，closed PR 依實際缺陷與分岔變動重審（[docs/UPSTREAM.md](docs/UPSTREAM.md)）。Agent 輸出已支援站內時間（`timelineAt`）並附時間過濾提示，V1 契約與回歸測試已補齊。
 
 ## 近期：可以直接動手
 | 項目 | 為什麼 | 驗收方式 | 建議執行者 | 證據 |
 | --- | --- | --- | --- | --- |
 | 整樹採納上游 `79d962e..6e0cfaf`（40 個 commit、212 檔、+4107／-1728、4 個資料庫遷移），含已合併的 #263 全文譯文入口與 #291 站點補充字體 | commit 水位卡在 `79d962e`，`python tools/check_upstream_updates.py --strict` 持續 exit 1；`check_divergence.py` 以該水位為基準，只能整樹採納才能推進，不能只挑幾筆。含 issue #278（admin cookie Secure，fork 的 `admin-auth.ts:26` 有同一缺陷）與 #282（部分政務站 TLS 握手）的修正 | 照上一輪做法把差量以 3-way 套到 fork 樹，逐一重做 DIVERGENCE 已登記的分岔檔（`admin-auth.ts`、`item.tsx`、`FeedItem.tsx`、`http-policy.ts`、兩個 `package.json`、lock、README、AGENTS）；`npm run typecheck`、`npm run build -w @aihot/web`、`node --test apps/web/tests/*.test.ts`、`python tools/check_divergence.py`、`python tests/test_fork_divergence.py` 全綠；備有 PostgreSQL 時加跑整合測試與 4 個遷移；之後推進 commit 水位、`--strict` exit 0 | Codex | [docs/UPSTREAM.md](docs/UPSTREAM.md) 的 2026-11-02 一節（逐 commit／PR／issue 裁決與工作量依據） |
-| 讓 agent 輸出帶站內時間（`timelineAt`） | 服務端以 `timeline_at`／`sort_at` 判斷視窗與排序，但 agent 文字只印 `publishedAt`；兩者差數小時時，依「最近 N 小時」自行過濾的 agent 會誤刪視窗內條目（上游 #194 的 `itemTimeBits` 是同一修法） | `V1ItemPayload` 與 v1 OpenAPI 加可選 `timelineAt`；`itemLines` 輸出「站內時間」，差距 ≥ 1 分鐘才另列原文發布時間，舊帳本 payload 缺欄位時退回現狀；`BRIEF_HINTS` 加按站內時間過濾的提示；補一條 `publishedAt` 早於 `timelineAt` 數小時的回歸測試；`linkText` 反斜線跳脫與 `fork-security-fixes.standalone.test.ts` 仍綠；不得整段套用 #194 的 hunk | Codex | [docs/UPSTREAM.md](docs/UPSTREAM.md) 的 #194 條目；`packages/backend/src/publication/agent.ts:48`、`publish.ts:91-105`、`v1.ts:47-48` |
 
 ## 中期：等條件成立再做
 | 項目 | 觸發條件 | 驗收方式 | 建議執行者 | 證據 |

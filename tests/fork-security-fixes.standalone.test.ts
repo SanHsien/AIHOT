@@ -35,6 +35,61 @@ test("an item title cannot close its link text and open a link of its own", () =
   assert.equal(line.slice(closed), "](https://aihot.example/items/1)", line);
 });
 
+test("publishedAt earlier than timelineAt by hours outputs site timeline and original published time", () => {
+  const query = { mode: "all", window: "24h", category: null, limit: 10 } as const;
+  const itemWithSkew = {
+    title: "Article with earlier publication",
+    links: { aihot: "https://aihot.example/items/1", original: "https://source.example/1" },
+    source: { name: "Source" },
+    publishedAt: "2026-10-27T01:00:00Z",
+    timelineAt: "2026-10-27T05:00:00Z",
+    discoveredAt: "2026-10-27T05:00:00Z",
+    category: null,
+    summary: null,
+    reason: null,
+  };
+  const itemWithoutTimeline = {
+    title: "Legacy item without timelineAt",
+    links: { aihot: "https://aihot.example/items/2", original: "https://source.example/2" },
+    source: { name: "Source" },
+    publishedAt: "2026-10-27T02:00:00Z",
+    discoveredAt: "2026-10-27T02:00:00Z",
+    category: null,
+    summary: null,
+    reason: null,
+  };
+  const itemCloseTimes = {
+    title: "Item with same published and timeline time",
+    links: { aihot: "https://aihot.example/items/3", original: "https://source.example/3" },
+    source: { name: "Source" },
+    publishedAt: "2026-10-27T03:00:00Z",
+    timelineAt: "2026-10-27T03:00:30Z",
+    discoveredAt: "2026-10-27T03:00:30Z",
+    category: null,
+    summary: null,
+    reason: null,
+  };
+  const res = {
+    schemaVersion: 1,
+    query: { ...query, by: "timeline", q: null, ordering: "timelineDesc" },
+    items: [itemWithSkew, itemWithoutTimeline, itemCloseTimes],
+    page: { count: 3, hasMore: false, nextCursor: null },
+  };
+  const text = latestAnswer(res as never, query);
+
+  // 1. Skew >= 1 min: outputs 站内时间 and 原文发布于
+  assert.match(text, /站内时间 \S+ 13:00 · 原文发布于 \S+ 09:00/);
+
+  // 2. Missing timelineAt: falls back to legacy 发布于
+  assert.match(text, /发布于 \S+ 10:00/);
+
+  // 3. Skew < 1 min (30s): only outputs 站内时间, does not repeat 原文发布于
+  assert.match(text, /站内时间 \S+ 11:00(?!\s*·\s*原文发布于)/);
+
+  // 4. BRIEF_HINTS includes timeline filtering hint
+  assert.match(text, /按每条的「站内时间」过滤/);
+});
+
 test("a redirected path keeps `$` sequences literally", () => {
   for (const tail of ["/a$`b", "/a$&b", "/a$'b", "/a$$b"]) {
     const decision = resolveRedirect(`/sources${tail}`, "");
