@@ -25,7 +25,12 @@
 
 ## 本 fork 保留的分岔
 
-見 [`DIVERGENCE.md`](DIVERGENCE.md)：README／AGENTS 繁中化、`CLAUDE.md` 刪除，以及 `zod` 4.6.7 與傳遞依賴（`undici`、`fast-uri`）的安全版本。
+以 [`DIVERGENCE.md`](DIVERGENCE.md) 的逐檔登記與收斂判準為準。目前除 README／AGENTS 繁中化、`CLAUDE.md` 刪除，以及 `zod` 4.6.7 與傳遞依賴（`undici`、`fast-uri`）的安全版本外，也保留產品碼與測試分岔：
+
+- 導航與瀏覽器測試：文章目錄邊界鍵盤捲動、phone card 停用 view transition，以及瀏覽器啟動失敗時的測試清理與 router／DOM 一致性回歸。
+- 安全修正：Agent Markdown 連結文字跳脫反斜線、prefix 轉址將路徑當資料替換、登入嘗試表修剪時保留全站計數。逐筆判讀與理由見 [`DECISIONS.md`](DECISIONS.md) 第 9 條。
+
+上游修改對應檔案時，依分岔表比對行為與回歸證據；只有包含等價修正才移除 fork 補丁與登記列，不以產品碼零分岔為前提。
 
 ## Open pull requests
 
@@ -35,7 +40,19 @@
 
 ## Closed, unmerged pull requests
 
-判準六：本 fork 的產品碼同步後與上游逐位元組相同（分岔只在文件與依賴版本），所以「被上游拒收的 PR 不可能在修只有本 fork 才有的缺陷」成立；只檢查本 fork 額外承擔的情境（Windows、繁中）。#93、#94、#101 的主題已由上游整合的 #105／#116 吸收；#255（Dockerfile 釘 `node:24.22.1`）不收：基底映像 `node:24-trixie-slim` 是浮動標籤，重建時就會取得最新 24.x，釘死反而不會自動跟進安全版；#158／#159（`dev.sh`）依賴 POSIX shell，本 fork 的本機驗證走 `tools/dev_check.*`。其餘（#99、#100、#113–#115、#118、#129、#194、#207、#211、#240、#245、#247、#248、#258、#262、#264，加上先前 #24–#72 系列）皆為新功能、資料提案或已被合併 PR 取代；只有上游重開或以新 PR 重提才重新評估。判準八對全部 66 個未合併 PR 的現行 head 掃描：命中的只有 PR 內的測試素材（`tests/fixtures/game-sources/*`）、品牌圖檔（`site/brand/nameplates/*.svg`）與一行測試用 `new Function(SIDEBAR_BOOT_SCRIPT)`，皆非隱藏載荷，且都不移植。
+判準六：本 fork 已有產品碼與測試分岔，不能因 PR 未被上游採納就排除其修復本 fork 缺陷的可能。審查時對照 [`DIVERGENCE.md`](DIVERGENCE.md) 的現行差異，檢查缺陷是否仍存在、是否涉及 fork 的安全與導航修正或額外承擔的情境（Windows、繁中），並以回歸測試證明是否需要移植；安全告警的逐筆理由沿用 [`DECISIONS.md`](DECISIONS.md) 第 9 條，不在本檔複製。以下保留既有逐筆結論；若本 fork 的相關分岔、source/sink 或防護邊界改變，即重新評估受影響項目，不必等上游重開。
+
+#93、#94、#101 的主題已由上游整合的 #105／#116 吸收；#255（Dockerfile 釘 `node:24.22.1`）不收：基底映像 `node:24-trixie-slim` 是浮動標籤，重建時就會取得最新 24.x，釘死反而不會自動跟進安全版；#158／#159（`dev.sh`）依賴 POSIX shell，本 fork 的本機驗證走 `tools/dev_check.*`。其餘（#99、#100、#113–#115、#118、#129、#194、#207、#211、#240、#245、#247、#248、#258、#262、#264，加上先前 #24–#72 系列）皆為新功能、資料提案或已被合併 PR 取代；除上述 fork 變動外，上游重開或以新 PR 重提時也重新評估。判準八對全部 66 個未合併 PR 的現行 head 掃描：命中的只有 PR 內的測試素材（`tests/fixtures/game-sources/*`）、品牌圖檔（`site/brand/nameplates/*.svg`）與一行測試用 `new Function(SIDEBAR_BOOT_SCRIPT)`，皆非隱藏載荷，且都不移植。
+
+`#56`、`#100`、`#194`、`#258` 觸及本 fork 分岔檔（`publication/agent.ts`、`http-policy.ts`、`FeedItem.tsx`、`routes/item.tsx`、`navigation-performance.test.ts`），2026-11-02 已依判準六逐筆讀 `gh pr diff` 與現行檔案重審，整體不採用（#194 整包不採用，但其中一個 `agent.ts` hunk 經判準六判定為本 fork 也有的缺陷，已拆出列入 [`ROADMAP.md`](../ROADMAP.md) 近期表）：
+
+- #56（週報公開 API）：不移植。其 `agent.ts` 只改 `agentGuide()` 的一行週報說明，`http-policy.ts` 只在 `V1_CACHE_CONTROL` 加 `weeklies`／`latestWeekly`／`weeklyByWeek`；現行 fork 已無該常數，週報 v1 端點改由 `apps/api/src/routes/v1.ts` 的 `weeklies` 路徑與 `V1_OPERATIONS` 提供，`agentGuide()` 也已改由模組組裝。該 PR 動的行不含 fork 補丁（`linkText` 反斜線跳脫在 `agent.ts:42`、`replaceAll("*", () => …)` 在 `http-policy.ts:85`），無衝突，也不涉及連結跳脫或轉址替換缺陷。
+- #100（把「推薦理由」「AI 評分」改讀 `ITEM_COPY`）：不移植，現行 fork 已有等效。`site/site.ts` 已有 `ITEM_COPY.reasonLabel`／`showScore`，`FeedItem.tsx:118`、`item.tsx:238,413,511`、`agent.ts:50,58` 已經使用；該 PR 的 `agent.ts`／`item.tsx`／`FeedItem.tsx` 改動只是文案常數化，不碰 `linkText`、`isPhone()` 或目錄邊界鍵盤攔截。
+- #194（大型介面改版，另含 ask 模組、遷移、部署 workflow，`gh pr view 194` 回報 338 檔）：不採用。其 `FeedItem.tsx`／`item.tsx` 改動是 spotlight 卡片、標題 `viewTransitionName`、Toast 重構、入選說明面板；`FeedItem.tsx` 的 `IntentLink viewTransition` 在 PR 側仍無條件啟用，且再替標題加共享 view-transition 名稱，與本 fork 的 phone 停用（`viewTransition={!isPhone()}`，WebKit 回歸）方向相反，採用會重新暴露那個缺陷。`navigation-performance.test.ts` 的改動只是把 fixture 分類換成 `new-games`／`esports` 遊戲行業分類，沒有 router／DOM 一致性斷言，無法取代 fork 的回歸。也不涉及 `item.tsx` 的目錄邊界鍵盤攔截（hunk 止於 ReadingProgress 與 Toast 一帶）。
+  - 另有兩個後端檔：`apps/api/src/routes/agent.ts`（+11／−3）讓模組 ability 接受可選查詢參數並把業務錯誤轉成 problem 回應，屬新功能，不採用。`packages/backend/src/publication/agent.ts`（+29／−3）新增 `itemTimeBits`，在 agent 輸出加「站內時間 `timelineAt`」，來源與站內時間差 1 分鐘以上才另列「原文發布於」，並在 `BRIEF_HINTS` 提示「最近 N 小時」要按站內時間過濾。**本 fork 有同樣缺陷**：`v1.ts:47-48,62` 的 `latest`／`search` 以 `p.sort_at`／`p.timeline_at` 判視窗與排序（agent 走 `by: "timeline"`，`agent.ts:80`），但 `V1ItemPayload`（`publish.ts:91-105`）沒有 `timelineAt`，`itemLines`（`agent.ts:48`）只印 `發布於 publishedAt`。條目 `publishedAt` 早於進站時間時，agent 依畫面上的時間做「最近 N 小時」過濾會誤刪視窗內的條目；這與服務端視窗語意不一致，不是 fork 獨有但 fork 同樣中招。**值得移植，但不能整段套用**：該 hunk 的上下文是舊的未跳脫 `linkText` 正則（`/([[\]])/g`），而 fork 是 `/([\\[\]])/g`（`agent.ts:42`，反斜線跳脫安全修正），整段套用會把補丁蓋掉；且 `V1ItemPayload` 與帳本 payload 沒有 `timelineAt`，要先擴充公開契約。因此不在本輪改產品碼，已在 ROADMAP 近期表加一列。未查：`selected_ledger` 既有舊 payload 是否需回填（PR 以 `if (it.timelineAt)` 退回舊格式，可相容舊資料）。
+- #258（分享卡片按鈕）：不採用。`item.tsx` 改動是把「分享卡片」做成原文連結旁的按鈕、手機工具列 `onShare` 改開海報、並在手機動作表新增分享列；這是版面偏好，現行 fork 已可從選單與手機動作表使用「生成分享海報」（`item.tsx:346,362`）。不涉及目錄邊界鍵盤攔截，與 fork 補丁無衝突，也未修任何本 fork 的缺陷。
+
+查證範圍：四筆 diff 皆以 `gh pr diff` 或 `gh api pulls/<n>/files`（#194 的整份 diff 過大，改取檔案 patch）唯讀取得；未在本機執行這些 PR 的測試，結論來自 diff 與現行程式碼比對。
 
 ## Open issues
 
