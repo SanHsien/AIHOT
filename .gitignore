@@ -14,3 +14,6 @@ apps/web/.react-router/
 # Font package unpacked to regenerate the report nameplates (docs/customize.md)
 package/
 fontsource-noto-sans-sc-*.tgz
+
+# Default output of tools/check_upstream_updates.py
+upstream-review-report.md

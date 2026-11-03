@@ -1,8 +1,12 @@
 # 上游審查紀錄
 
-最後審查：2026-11-03（commit 水位 `41cee09`，PR 水位 #332、issue 水位 #320；PR #323 以 head／state 追蹤）
+最後審查：2026-11-03（commit 水位 `cd424b0`，PR 水位 #332、issue 水位 #320；無追蹤中的 open PR）
 
 本檔只記可執行結論。機器水位與 open PR head SHA 放在 [`tools/upstream_baseline.json`](../tools/upstream_baseline.json)。相同 SHA、狀態與庫存不重審；任一項變動才重新評估。
+
+## 2026-11-03 追加採納（`41cee09..cd424b0`）
+
+上游 main 在整樹採納後前進兩個 commit，即 #323 的合併：`dcb366e`、`cd424b0`，只觸及 `apps/web/app/components/ui/Menu.tsx` 與 `apps/web/tests/item-copy.test.ts`，整檔採納。Co-authored-by 致謝：Henry May <mei1733455431@gmail.com>、Claude Opus 5.5 <noreply@anthropic.com>。
 
 ## 2026-11-03 整樹採納（`79d962e..41cee09`）
 
@@ -28,7 +32,7 @@
 
 | 新增 PR | 裁決與重新審查條件 |
 |---|---|
-| #323（open，head `50ec992`） | 不併入 main 整樹採納：獨立的 Menu 鍵盤導航／焦點修復，觸及 Menu 與 item-copy 測試，不覆蓋 fork 分岔；已讀完整 diff 並掃描，未合併的修復超出本項 main 範圍。以 `monitored` 追蹤 head／state，變動即重審。 |
+| #323（merged，`cd424b0`） | adopt：Menu 鍵盤導航與焦點修復，作者 Henry May。合併為 `dcb366e`（鍵盤導航、Esc 返回觸發鈕、Tab 離開關閉、`inert`／`aria-hidden`）與 `cd424b0`（移除容器 `onBlur` 關閉，修 Safari 按下按鈕不取得焦點而重開選單）。fork 的 `Menu.tsx` 與 `item-copy.test.ts` 原與上游 `41cee09` 相同（`Menu.tsx` 第 13 行 Escape 只 `setOpen(false)`、無 `triggerRef`），整檔改為 `cd424b0` 內容，兩檔皆非分岔登記檔。同 PR 的 webkit 與 Chromium 回歸隨 `item-copy.test.ts` 一併採納。 |
 | #324、#325、#326、#327、#329、#330、#331、#332 | merged，分別對應以上八個 commit，全部採納。 |
 
 issue #320 之後無新增，issue 水位不變。

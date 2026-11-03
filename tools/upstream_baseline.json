@@ -4,23 +4,15 @@
   "branches": [
     "main"
   ],
-  "reviewed_through": "41cee09f70518fdcacdc307dcba58d635505bb41",
+  "reviewed_through": "cd424b0a513c7c8535b6f291b106a3086d6b75bf",
   "reviewed_date": "2026-11-03",
   "reviewed_pr_through": 332,
   "reviewed_issue_through": 320,
   "latest_tag": null,
   "latest_release": null,
-  "reviewed_open_prs": {
-    "323": "50ec9922859554249ae79d4c41f9f32bc9c68c31"
-  },
+  "reviewed_open_prs": {},
   "reviewed_open_issues": [],
-  "notes": "2026-11-03: adopted the entire 79d962e..41cee09 upstream delta (48 commits, 230 paths, 7 new migrations), retaining documented fork security, navigation and timelineAt patches. Upstream dependency fixes satisfy the divergence retirement criteria. Retained three previously tracked test files under the no-deletion constraint; their assertions also exist in consolidated upstream tests. PRs #324-#327 and #329-#332 are merged and adopted; unmerged PR #323 is outside the main-only adoption scope and pinned for review when its head or state changes. Issue watermark remains #320 (no newer issues). See docs/UPSTREAM.md for decisions and database verification limits.",
+  "notes": "2026-11-03: adopted the entire 79d962e..41cee09 upstream delta (48 commits, 230 paths, 7 new migrations), retaining documented fork security, navigation and timelineAt patches. Upstream dependency fixes satisfy the divergence retirement criteria. Retained three previously tracked test files under the no-deletion constraint; their assertions also exist in consolidated upstream tests. PRs #324-#327 and #329-#332 are merged and adopted; PR #323 merged afterwards as dcb366e and cd424b0 and is adopted whole-file (Menu.tsx, item-copy.test.ts). Issue watermark remains #320 (no newer issues). See docs/UPSTREAM.md for decisions and database verification limits.",
   "decision_log": "docs/UPSTREAM.md",
-  "monitored": [
-    {
-      "item": "pr#323",
-      "head": "50ec9922859554249ae79d4c41f9f32bc9c68c31",
-      "state": "open"
-    }
-  ]
+  "monitored": []
 }
