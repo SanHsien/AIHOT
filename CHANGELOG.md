@@ -6,6 +6,7 @@
 ## [Unreleased]
 
 ### Changed
+- 同步上游 `79d962e..41cee09`（48 個 commit、230 個路徑、7 個新增遷移），保留安全、導航與 Agent 站內時間分岔；依上游安全版本收斂依賴補丁，保留三個已合併至其他測試的舊測試檔。
 - 同步上游 `ce83484..79d962e`（PR #273–#275）：告警可改走群組機器人 Webhook（`FEISHU_ALERT_WEBHOOK_URL`）、日報跨年日期帶年份、登入頁路徑辨識補 Devise／WordPress／副檔名。
 - 同步上游 `cc66cce..ce83484`（124 個 commit，4.0.0 引擎／站點分層、遷移約定、安全邊界與採集修正）；README、AGENTS 併入新結構並維持繁中。
 - 撤回 fork 先前移植的 PR #79／#83／#85：上游已各自解決（見 `docs/UPSTREAM.md`），分岔列刪除；`_aihot.initialBackfillOnly` 開關移除，行為改採上游內建規則。
@@ -16,6 +17,7 @@
 - 其餘 39 筆 CodeQL 告警逐筆附 source/sink 理由關閉，判讀見 `docs/DECISIONS.md` 第 9 條。
 
 ### Fixed
+- 分岔檢查器按內容比對尚未追蹤的上游新增檔，整樹採納時不再誤報為刪除；相同與不同內容均有回歸測試。
 - `fork-check` 的分岔檢查過去從未真正執行（CI 沒有上游基準 commit，檢查器印 `Skipping check.` 後 exit 0）：缺基準改回 exit 2，workflow 先抓上游 main。
 - `check_divergence.py` 把被改名的上游檔案也算成分岔（原本 `R` 狀態會漏掉）。
 - `check_dependency_freshness.py`：加了 `# freshness-hold:` 的 Action 顯示 `HELD`，不再報 `CHECK FAILED`。

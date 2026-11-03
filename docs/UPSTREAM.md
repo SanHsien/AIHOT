@@ -1,8 +1,46 @@
 # 上游審查紀錄
 
-最後審查：2026-11-02（commit 水位仍是上游 `79d962e`，PR 水位 #322、issue 水位 #320；commit 軸的整樹採納待排程，見下方 2026-11-02 一節）
+最後審查：2026-11-03（commit 水位 `41cee09`，PR 水位 #332、issue 水位 #320；PR #323 以 head／state 追蹤）
 
 本檔只記可執行結論。機器水位與 open PR head SHA 放在 [`tools/upstream_baseline.json`](../tools/upstream_baseline.json)。相同 SHA、狀態與庫存不重審；任一項變動才重新評估。
+
+## 2026-11-03 整樹採納（`79d962e..41cee09`）
+
+已將 fetch 確認的 main `41cee09f70518fdcacdc307dcba58d635505bb41` 差量以逐檔三方合併採納：48 個 commit、230 個路徑、+5242／-1813，無文字衝突。下方 2026-11-02 的 40 筆 commit 裁決是歷史快照；其中 defer 均已隨本次整樹採納，三筆依賴 skip 已由上游安全版本涵蓋。PR #263 的 revision-checked 全文譯文入口與 #291 的分享圖補充字體一併採納。
+
+- 分岔依 `DIVERGENCE.md` 保留：限流表全站計數、Markdown 跳脫、prefix 替換、手機導航、目錄捲動、測試 cleanup 與 `timelineAt`。`http-policy.ts` 的舊 `/sources` 規則已移除，prefix 回歸改用測試模組宣告的規則。
+- 上游 `zod` 4.6.6 已符合原登記的 ≥4.6.6 收斂條件；`fast-uri`、`undici` 也已有安全修補，兩個 manifest 與 lock 改採上游，移除三列依賴分岔。
+- 依保留既有檔案的限制，`day-header-year.test.ts`、`report-year.test.ts`、`sign-in-paths.standalone.test.ts` 留存；上游已把同類斷言併入既有測試，這三個路徑在新基準下屬 fork 自有測試。
+- 新增 7 個遷移：0090、0091、0092、0105 是新增欄位；0121、0122、0123 是 `CONCURRENTLY IF NOT EXISTS` 索引。均為新檔、每檔一條語句，沒有修改已發布遷移。環境無可用本機 `_test`／`_ci` 資料庫設定、PostgreSQL 工具或服務；遷移與資料庫整合測試未驗證，沒有建立或連線其他庫。
+- 隱藏內容掃描涵蓋 48 個 commit 各自的新增行及 PR #323：行內 ≥40 空白、>400 字元行、eval／new Function／globalThis.require、長 base64／hex、零寬與雙向字元。命中僅四條已判讀的長行（Picture sizes、部署說明、測試 SVG）與 HMAC `digest("base64url")`，均為正常內容，無隱藏載荷。
+- Co-authored-by 致謝：Claude Opus 5.5 <noreply@anthropic.com>、cunyikang <cunyikang@qq.com>、FelixFtch <143968032+FelixFtch@users.noreply.github.com>、granary17 <98481815+granary17@users.noreply.github.com>。
+
+| 新增 commit | 裁決與理由 |
+|---|---|
+| `f88621f` | adopt：微信文章身分與存量查找、兩個並行索引、管理內容路徑與模組管理邊界。 |
+| `9059707` | adopt：第三個微信 externalId 查找索引，補足短網址先入庫的去重。 |
+| `e6e3c68` | adopt：回饋來源與信箱封禁、通知接收者設定及其回歸。 |
+| `2c71b68` | adopt：一致正文抽取、aside／layout 類別處理、純文字替代正文入口與日期解析回歸。 |
+| `ce97b4d` | adopt：依讀者卡片比較同新聞、事實合併、回聲來源與交易內發布。付費判斷仍走既有模型與回執。 |
+| `29aa1ab` | adopt：事實合併補正與事件／新聞價值回歸。 |
+| `e05f58a` | adopt：帶明確錨點的 Markdown changelog 解析及回歸。 |
+| `41cee09` | adopt：架構測試將共用測試支援檔明確排除出產品模組邊界檢查。 |
+
+| 新增 PR | 裁決與重新審查條件 |
+|---|---|
+| #323（open，head `50ec992`） | 不併入 main 整樹採納：獨立的 Menu 鍵盤導航／焦點修復，觸及 Menu 與 item-copy 測試，不覆蓋 fork 分岔；已讀完整 diff 並掃描，未合併的修復超出本項 main 範圍。以 `monitored` 追蹤 head／state，變動即重審。 |
+| #324、#325、#326、#327、#329、#330、#331、#332 | merged，分別對應以上八個 commit，全部採納。 |
+
+issue #320 之後無新增，issue 水位不變。
+
+
+### 本機驗證（2026-11-03，整合來源 `41cee09`）
+
+- Node.js 24.22.1：`tools/dev_check.ps1` exit 0（typecheck、SSR build、網頁 65/65、分岔契約 9/9、freshness 契約 2/2）；`npm run test:standalone` 249/249，`npm audit --package-lock-only` 0 vulnerabilities，`check_upstream_updates.py --strict` exit 0。
+- HTTP cookie 回歸在舊實作為 `true !== false`，採納後 5/5 fork 安全回歸通過。分岔檢查器新增回歸：基準新增檔存在但未追蹤時，舊檢查器誤報刪除；改依 Git filtered blob 比對後，相同內容與不同內容兩個案例皆通過，實際 15 列登記吻合。
+- 公開樣本只下載一次後由 localhost fake server 重播：Google Research RSS 100 筆、Hugging Face RSS 895 筆，以及各自最新一篇原文；以 load hook 載入起點 `92d91d7` 原始碼，與採納後比對。995 筆的 URL、標題、日期、摘要、正文與狀態完全相同；兩篇正文分別 9424、9686 字元，SHA-256 與日期也完全相同。這項比對未呼叫模型或連線資料庫。
+- 預設 Node.js 26.12.1 的 standalone 為 248/249：既有 secure-proxy fixture 把 IP 設為 SNI，Node 26 拋 `ERR_INVALID_ARG_VALUE`；同一程式與測試在專案指定的 Node 24.22.1 通過。沒有修改 TLS 驗證或放寬斷言。
+- `git diff --check` 唯一提示為上游原有的 `tests/collection-body-preservation.test.ts:73` 檔尾空行；保留上游內容，沒有為格式建立額外分岔。
 
 ## Main commits
 
@@ -25,7 +63,7 @@
 
 ## 本 fork 保留的分岔
 
-以 [`DIVERGENCE.md`](DIVERGENCE.md) 的逐檔登記與收斂判準為準。目前除 README／AGENTS 繁中化、`CLAUDE.md` 刪除，以及 `zod` 4.6.7 與傳遞依賴（`undici`、`fast-uri`）的安全版本外，也保留產品碼與測試分岔：
+以 [`DIVERGENCE.md`](DIVERGENCE.md) 的逐檔登記與收斂判準為準。目前除 README／AGENTS 繁中化、`CLAUDE.md` 刪除，也保留產品碼與測試分岔；依賴補丁已於 2026-11-03 隨上游安全版本收斂：
 
 - 導航與瀏覽器測試：文章目錄邊界鍵盤捲動、phone card 停用 view transition，以及瀏覽器啟動失敗時的測試清理與 router／DOM 一致性回歸。
 - 安全修正：Agent Markdown 連結文字跳脫反斜線、prefix 轉址將路徑當資料替換、登入嘗試表修剪時保留全站計數。逐筆判讀與理由見 [`DECISIONS.md`](DECISIONS.md) 第 9 條。

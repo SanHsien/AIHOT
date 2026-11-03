@@ -5,7 +5,7 @@ import type { parseHTML } from "linkedom";
 import { sql } from "../db.ts";
 import { guardedFetch, languageHeaders } from "../lib/http-fetch.ts";
 import { assertPageContent, contentDocument, UnavailablePageError } from "../lib/page-content.ts";
-import { stripTags } from "../lib/text.ts";
+import { escapeXml, stripTags } from "../lib/text.ts";
 import { isVideoPageUrl } from "../lib/video-url.ts";
 import { jinaRead } from "../providers/jina.ts";
 import { BudgetExceededError } from "../providers/receipts.ts";
@@ -21,7 +21,7 @@ export interface ExtractedBody {
   html: string;
   text: string;
   images: Array<{ kind: "image"; url: string; width: number | null; height: number | null }>;
-  via: "readability" | "jina";
+  via: "readability" | "jina" | "text";
   /** The page's publication metadata; neither modification time nor dates mentioned in its prose. */
   publishedAt?: Date | null;
   publicationTime?: string | null;
@@ -148,15 +148,21 @@ export interface PreserveRule {
   caption?: string;
 }
 
-/** How a source's article pages are read: the zone of a time printed without one, the widgets to preserve, and the language asked for. */
+/**
+ * How a source's article pages are read: the zone of a time printed without one, the widgets to preserve, and the language asked for.
+ * Never where the body is: extraction uses one set of rules for every page, and boilerplate that leaks into
+ * bodies (subscribe prompts, recommendation blocks) is fixed in those rules rather than per source.
+ */
 export interface PageRules {
   utcOffset?: string;
   preserve?: PreserveRule[];
   acceptLanguage?: string;
+  /** A source's text alternate, such as a commit's .patch; the article keeps its original URL. */
+  bodyUrlSuffix?: string;
 }
 
 export const pageRules = (config: SourceRow["config"]): PageRules =>
-  ({ utcOffset: articleUtcOffset(config), preserve: config.detail?.preserve, acceptLanguage: config.acceptLanguage });
+  ({ utcOffset: articleUtcOffset(config), preserve: config.detail?.preserve, acceptLanguage: config.acceptLanguage, bodyUrlSuffix: config.detail?.bodyUrlSuffix });
 
 type Doc = ReturnType<typeof parseHTML>["document"];
 type El = NonNullable<ReturnType<Doc["querySelector"]>>;
@@ -387,6 +393,44 @@ function describeFigureDrawings(document: Doc) {
   }
 }
 
+/**
+ * Readability removes every aside. One set among the article's paragraphs (its parent holds paragraphs of
+ * its own) that carries prose, such as an update note or a correction, is part of what the author wrote:
+ * it is kept as a quotation. An aside of links, a line with a form, or one beside the article still goes.
+ * The quotation keeps the aside's attributes, so a hidden one stays hidden and one named as comments is
+ * still judged by that name.
+ */
+function keepAsidesAmongParagraphs(document: Doc) {
+  for (const aside of document.querySelectorAll("aside")) {
+    const parent = aside.parentElement;
+    if (!parent || ![...parent.children].some((child) => child.localName === "p")) continue;
+    if (aside.querySelector("form, input, button")) continue;
+    const prose = collapsed([...aside.querySelectorAll("p")].map((p) => p.textContent).join(" "));
+    const linked = collapsed([...aside.querySelectorAll("p a")].map((a) => a.textContent).join(" "));
+    if (prose.length < 20 || linked.length * 2 > prose.length) continue;
+    const quote = document.createElement("blockquote");
+    for (const { name, value } of [...aside.attributes]) quote.setAttribute(name, value);
+    quote.append(...aside.childNodes);
+    aside.replaceWith(quote);
+  }
+}
+
+/**
+ * Readability scores class names, and utility classes that only set overflow, scrolling or snapping read to
+ * it as "hidden" or "scroll" ("overflow-hidden", "scroll-mt-24"): a box of the author's text with such a class
+ * was dropped. They say nothing about what the box holds, so they are taken off before scoring.
+ */
+const LAYOUT_CLASS = /^(?:[\w-]+:)*(?:overflow|overscroll|scroll|snap)-[\w-]+$/;
+function dropLayoutClasses(document: Doc) {
+  for (const el of document.querySelectorAll("[class]")) {
+    const classes: string[] = (el.getAttribute("class") ?? "").split(/\s+/).filter(Boolean);
+    const kept = classes.filter((c) => !LAYOUT_CLASS.test(c));
+    if (kept.length === classes.length) continue;
+    if (kept.length) el.setAttribute("class", kept.join(" "));
+    else el.removeAttribute("class");
+  }
+}
+
 /** readable() on a page already parsed and checked (contentDocument). Readability changes the document. */
 export function readableDocument(document: Doc, url: string, rules: PageRules = {}): ExtractedBody | null {
   if (isVideoPageUrl(url)) return null;
@@ -402,6 +446,10 @@ export function readableDocument(document: Doc, url: string, rules: PageRules = 
   settleInlineVisibility(document);
   preserveWidgets(document, rules.preserve ?? []);
   describeFigureDrawings(document);
+  keepAsidesAmongParagraphs(document);
+  dropLayoutClasses(document);
+  // A document theme is not an article candidate: names such as "header-dark" can discard the root.
+  document.documentElement.removeAttribute("class");
   const article = new Readability(document as unknown as ConstructorParameters<typeof Readability>[0], { charThreshold: MIN_BODY_CHARS, keepClasses: false }).parse();
   if (!article?.content) return null;
   const clean = trimTrailingChrome(sanitizeBody(article.content, url));
@@ -424,11 +472,19 @@ export function readableDocument(document: Doc, url: string, rules: PageRules = 
 
 export async function extractFromUrl(url: string, subject: string, rules: PageRules = {}, opts: { paidFallback?: boolean } = {}): Promise<ExtractedBody | null> {
   if (isVideoPageUrl(url)) return null;
+  const target = new URL(url);
+  if (rules.bodyUrlSuffix) target.pathname += rules.bodyUrlSuffix;
   try {
-    const res = await guardedFetch(url, { headers: languageHeaders(rules.acceptLanguage), timeoutMs: 20_000, maxBytes: 6 * 1024 * 1024 });
+    const res = await guardedFetch(target.href, { headers: languageHeaders(rules.acceptLanguage), timeoutMs: 20_000, maxBytes: 16 * 1024 * 1024 });
     if (isVideoPageUrl(res.url)) return null;
     if (isSignInRedirect(url, res.url)) return null;
     const type = res.headers.get("content-type") ?? "";
+    if (res.status === 200 && /^(?:text\/plain|text\/markdown|text\/x-(?:diff|patch))\b/i.test(type)) {
+      const text = res.text().trim();
+      if (text.length < MIN_BODY_CHARS) return null;
+      assertPageContent("", text);
+      return { html: `<pre>${escapeXml(text)}</pre>`, text, images: [], via: "text" };
+    }
     if (res.status === 200 && /html/.test(type)) {
       const got = readable(res.text(), res.url, rules);
       if (got) return got;
@@ -438,7 +494,7 @@ export async function extractFromUrl(url: string, subject: string, rules: PageRu
   }
   if (opts.paidFallback === false) return null;
   try {
-    const page = await jinaRead(url, { purpose: "body_fallback", subject });
+    const page = await jinaRead(target.href, { purpose: "body_fallback", subject });
     const html = markdownBody(page.markdown, url);
     const text = stripTags(html);
     if (text.length < MIN_BODY_CHARS) return null;

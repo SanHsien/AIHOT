@@ -9,6 +9,7 @@ This file records only the changes made by this fork; for upstream changes, see 
 ## [Unreleased]
 
 ### Changed
+- Synced upstream `79d962e..41cee09` (48 commits, 230 paths, seven new migrations), preserving security, navigation and agent timeline patches. Retired dependency overrides covered by upstream security fixes; retained three existing test files whose assertions upstream consolidated elsewhere.
 - Synced upstream `ce83484..79d962e` (PR #273–#275): alerts may go to a group bot webhook (`FEISHU_ALERT_WEBHOOK_URL`), daily-report dates of another year carry the year, sign-in path detection covers Devise, WordPress and file extensions.
 - Synced upstream `cc66cce..ce83484` (124 commits: 4.0.0 engine/site split, migration rules, security boundaries, collection fixes); README and AGENTS carry the new structure.
 - Dropped the earlier ports of PR #79/#83/#85: upstream solved each itself (see `docs/UPSTREAM.md`), so the divergence rows are gone; the `_aihot.initialBackfillOnly` switch is removed in favour of upstream's built-in rule.
@@ -23,6 +24,7 @@ This file records only the changes made by this fork; for upstream changes, see 
   - Bump `sharp` to 0.35.5 (fixes GHSA-wq5f-xc86-pv6w librsvg dependency vulnerability).
 
 ### Fixed
+- Compare untracked upstream additions by content in the divergence checker, avoiding false deletions during whole-tree adoption; regression coverage checks both identical and changed content.
 - The divergence check in `fork-check` never actually ran (CI lacked the upstream base commit and the checker printed `Skipping check.` with exit 0): a missing base is now exit 2 and the workflow fetches upstream main first.
 - `check_divergence.py` counts a renamed upstream file as divergent (the `R` status used to slip through).
 - `check_dependency_freshness.py` shows an action held with `# freshness-hold:` as `HELD` instead of `CHECK FAILED`.

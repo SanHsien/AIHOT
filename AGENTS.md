@@ -50,7 +50,7 @@
 ```bash
 npm run typecheck
 npm run build -w @aihot/web
-node --test apps/web/tests/*.test.ts
+npm run test:web
 python tools/check_divergence.py
 python tests/test_fork_divergence.py
 ```

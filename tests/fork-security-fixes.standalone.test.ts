@@ -4,6 +4,8 @@ import "./setup.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import Fastify from "fastify";
+import type { ModuleDeclaration } from "@aihot/contracts/modules";
+import { MODULES } from "@aihot/site/modules";
 import { config } from "@aihot/backend/config";
 import { latestAnswer } from "@aihot/backend/publication/agent";
 import { resolveRedirect } from "@aihot/contracts/http-policy";
@@ -91,9 +93,15 @@ test("publishedAt earlier than timelineAt by hours outputs site timeline and ori
 });
 
 test("a redirected path keeps `$` sequences literally", () => {
-  for (const tail of ["/a$`b", "/a$&b", "/a$'b", "/a$$b"]) {
-    const decision = resolveRedirect(`/sources${tail}`, "");
-    assert.equal(decision?.location, `/admin/sources${tail}`, tail);
+  const modules = MODULES as ModuleDeclaration[];
+  modules.push({ name: "fork-redirect-test", redirects: [{ match: "prefix", path: "/test-prefix", status: 302, location: "/test-target*" }] });
+  try {
+    for (const tail of ["/a$`b", "/a$&b", "/a$'b", "/a$$b"]) {
+      const decision = resolveRedirect(`/test-prefix${tail}`, "");
+      assert.equal(decision?.location, `/test-target${tail}`, tail);
+    }
+  } finally {
+    modules.pop();
   }
 });
 
@@ -117,6 +125,28 @@ test("forged client addresses cannot reset the overall password attempt cap", as
     assert.match(await attempt(), /error=too-many/, "the overall cap still holds after the table is trimmed");
   } finally {
     (config as { adminPassword: string | null }).adminPassword = saved;
+    await app.close();
+  }
+});
+
+test("sign-out cookies follow the request protocol even when the canonical site is HTTPS", async () => {
+  const saved = config.siteUrl;
+  (config as { siteUrl: string }).siteUrl = "https://aihot.example";
+  const app = Fastify({ trustProxy: true });
+  registerAdminAuth(app);
+  await app.ready();
+  try {
+    for (const protocol of ["http", "https"]) {
+      const response = await app.inject({
+        method: "POST", url: "/api/auth/logout",
+        headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-proto": protocol },
+        payload: "",
+      });
+      assert.equal(response.statusCode, 303);
+      assert.equal(/; Secure(?:;|$)/.test(String(response.headers["set-cookie"])), protocol === "https");
+    }
+  } finally {
+    (config as { siteUrl: string }).siteUrl = saved;
     await app.close();
   }
 });

@@ -4,14 +4,23 @@
   "branches": [
     "main"
   ],
-  "reviewed_through": "79d962ea96c7f2ed0d2df9b01d9cf00b5550d1d0",
-  "reviewed_date": "2026-11-02",
-  "reviewed_pr_through": 322,
+  "reviewed_through": "41cee09f70518fdcacdc307dcba58d635505bb41",
+  "reviewed_date": "2026-11-03",
+  "reviewed_pr_through": 332,
   "reviewed_issue_through": 320,
   "latest_tag": null,
   "latest_release": null,
-  "reviewed_open_prs": {},
+  "reviewed_open_prs": {
+    "323": "50ec9922859554249ae79d4c41f9f32bc9c68c31"
+  },
   "reviewed_open_issues": [],
-  "notes": "Upstream main commits through 79d962e were adopted and reviewed on 2026-10-28 (#271 closed upstream by aa8e5b1 / PR #273; #272 returns 404). 2026-11-02: PR #276-#322 and issue #276-#320 were triaged one by one, but the commit watermark is deliberately NOT advanced: 40 upstream commits (79d962e..6e0cfaf, 212 files, 4 DB migrations) need a whole-tree adoption first, because tools/check_divergence.py treats reviewed_through as the tree baseline; see docs/UPSTREAM.md (2026-11-02) and ROADMAP.md. PR #263 was merged upstream on 2026-11-01 (823db74) and issues #261/#267 are closed, so the tracked open lists are now empty. Decisions are recorded in docs/UPSTREAM.md. Review again only when main, a tracked open PR head SHA, issue state/content, branch inventory, tags, or releases change.",
-  "decision_log": "docs/UPSTREAM.md"
+  "notes": "2026-11-03: adopted the entire 79d962e..41cee09 upstream delta (48 commits, 230 paths, 7 new migrations), retaining documented fork security, navigation and timelineAt patches. Upstream dependency fixes satisfy the divergence retirement criteria. Retained three previously tracked test files under the no-deletion constraint; their assertions also exist in consolidated upstream tests. PRs #324-#327 and #329-#332 are merged and adopted; unmerged PR #323 is outside the main-only adoption scope and pinned for review when its head or state changes. Issue watermark remains #320 (no newer issues). See docs/UPSTREAM.md for decisions and database verification limits.",
+  "decision_log": "docs/UPSTREAM.md",
+  "monitored": [
+    {
+      "item": "pr#323",
+      "head": "50ec9922859554249ae79d4c41f9f32bc9c68c31",
+      "state": "open"
+    }
+  ]
 }

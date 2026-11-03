@@ -80,14 +80,23 @@ def changed_since_base(base_sha: str, repo_dir: Path) -> list[tuple[str, str]]:
         pairs.append((status, path))
         seen_paths.add(path)
 
-    # Fold in untracked files so unstaged additions (like aliased mirrors) are checked
-    untracked_result = run_git(["status", "--porcelain"], repo_dir)
-    if untracked_result.returncode == 0:
-        for line in untracked_result.stdout.splitlines():
-            if line.startswith("?? "):
-                path = line[3:].strip()
-                if path not in seen_paths:
-                    pairs.append(("A", path))
+    # New upstream files can exist untracked during adoption. Git's index-based diff
+    # calls them deleted; compare their filtered blob to the baseline instead.
+    untracked_result = run_git(["ls-files", "--others", "--exclude-standard", "-z"], repo_dir)
+    if untracked_result.returncode != 0:
+        raise DivergenceCheckError(f"git ls-files failed: {untracked_result.stderr.strip()}")
+    owned = owned_files_at_base(base_sha, repo_dir)
+    for path in filter(None, untracked_result.stdout.split("\0")):
+        if path in owned:
+            original = run_git(["rev-parse", f"{base_sha}:{path}"], repo_dir)
+            current = run_git(["hash-object", f"--path={path}", "--", path], repo_dir)
+            if original.returncode != 0 or current.returncode != 0:
+                raise DivergenceCheckError(f"cannot compare untracked baseline file: {path}")
+            pairs = [(status, name) for status, name in pairs if name != path]
+            if original.stdout.strip() != current.stdout.strip():
+                pairs.append(("M", path))
+        elif path not in seen_paths:
+            pairs.append(("A", path))
     return pairs
 
 

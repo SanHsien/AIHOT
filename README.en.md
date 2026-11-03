@@ -38,6 +38,8 @@
 
 The repository contains the website, admin panel, selection pipeline, event grouping, hotness calculation, and all prompts and thresholds.
 
+Installable Agent Skill files are available only on the hosted AIHOT site. The open-source framework exposes MCP and the site’s `/agent` page.
+
 ## How It Works
 
 ```text

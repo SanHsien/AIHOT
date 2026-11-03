@@ -117,6 +117,17 @@ class TestDivergenceAgainstGit(unittest.TestCase):
         pairs = checker.changed_since_base(self.base, self.repo)
         self.assertIn("upstream.md", checker.compute_divergent_files(pairs, owned))
 
+    def test_untracked_baseline_files_are_compared_by_content(self):
+        # A fork adopts a newer upstream tree without staging the upstream's new files.
+        _git(self.repo, "rm", "--cached", "upstream.md")
+        _git(self.repo, "commit", "-q", "-m", "fork without the new upstream file")
+        owned = checker.owned_files_at_base(self.base, self.repo)
+        for content, expected in [("upstream\n" * 20, set()), ("fork edit\n", {"upstream.md"})]:
+            with self.subTest(content=content):
+                (self.repo / "upstream.md").write_text(content, encoding="utf-8")
+                pairs = checker.changed_since_base(self.base, self.repo)
+                self.assertEqual(checker.compute_divergent_files(pairs, owned), expected)
+
     def test_missing_base_commit_fails_the_check(self):
         other = Path(self._tmp.name) / "other"
         other.mkdir()
