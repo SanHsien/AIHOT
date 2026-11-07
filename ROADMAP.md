@@ -11,7 +11,7 @@
 ## 近期：可以直接動手
 | 項目 | 為什麼 | 驗收方式 | 建議執行者 | 證據 |
 | --- | --- | --- | --- | --- |
-| 審查上游 `cd424b0..4e45b6b`：12 個 commit、PR #336–#344、issue #334–#340 | 2026-11-08 `python tools/check_upstream_updates.py --strict` 回報 behind 10（上游當時在 `4106602`）；其後查得上游 PR #344 已於 2026-11-07 19:10Z 合併（merge commit `4e45b6b`），2026-11-08 以 `gh api repos/KKKKhazix/AIHOT/compare/cd424b0...main` 查得 ahead 12，開工前先重跑 `--strict` 取得當下的範圍。範圍含釘釘群機器人推送（`6aafd93` 起、遷移 0124–0126）、X 歷史 backlog 修正、側欄高亮、正文抽取；水位尚未推進 | 逐筆判斷寫進 `docs/UPSTREAM.md`；採納者保留已登記分岔、`python tools/check_divergence.py` 通過、完整本機閘門綠；`--strict` exit 0 後才推進 `tools/upstream_baseline.json`；PR 只打 `SanHsien/AIHOT` | Claude Opus | `tools/upstream_baseline.json`（`cd424b0`、PR 332、issue 320）；`docs/UPSTREAM.md` |
+| 審查上游 `cd424b0..4e45b6b`：12 個 commit、PR #336–#344、issue #334–#340 | 2026-11-08 `python tools/check_upstream_updates.py --strict` 回報 behind 10（上游當時在 `4106602`）；其後查得上游 PR #344 已於 2026-11-07 19:14Z 合併（merge commit `4e45b6b`），2026-11-08 以 `gh api repos/KKKKhazix/AIHOT/compare/cd424b0...main` 查得 ahead 12，開工前先重跑 `--strict` 取得當下的範圍。範圍含釘釘群機器人推送（`6aafd93` 起、遷移 0124–0126）、X 歷史 backlog 修正、側欄高亮、正文抽取；水位尚未推進 | 逐筆判斷寫進 `docs/UPSTREAM.md`；採納者保留已登記分岔、`python tools/check_divergence.py` 通過、完整本機閘門綠；`--strict` exit 0 後才推進 `tools/upstream_baseline.json`；PR 只打 `SanHsien/AIHOT` | Claude Opus | `tools/upstream_baseline.json`（`cd424b0`、PR 332、issue 320）；`docs/UPSTREAM.md` |
 
 ## 中期：等條件成立再做
 | 項目 | 觸發條件 | 驗收方式 | 建議執行者 | 證據 |
