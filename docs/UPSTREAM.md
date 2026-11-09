@@ -15,7 +15,7 @@
 - 分岔依 `DIVERGENCE.md` 保留：限流表全站計數、Markdown 跳脫、prefix 替換、手機導航、目錄捲動、測試 cleanup 與 `timelineAt`。`http-policy.ts` 的舊 `/sources` 規則已移除，prefix 回歸改用測試模組宣告的規則。
 - 上游 `zod` 4.6.6 已符合原登記的 ≥4.6.6 收斂條件；`fast-uri`、`undici` 也已有安全修補，兩個 manifest 與 lock 改採上游，移除三列依賴分岔。
 - 依保留既有檔案的限制，`day-header-year.test.ts`、`report-year.test.ts`、`sign-in-paths.standalone.test.ts` 留存；上游已把同類斷言併入既有測試，這三個路徑在新基準下屬 fork 自有測試。
-- 新增 7 個遷移：0090、0091、0092、0105 是新增欄位；0121、0122、0123 是 `CONCURRENTLY IF NOT EXISTS` 索引。均為新檔、每檔一條語句，沒有修改已發布遷移。環境無可用本機 `_test`／`_ci` 資料庫設定、PostgreSQL 工具或服務；遷移與資料庫整合測試未驗證，沒有建立或連線其他庫。
+- 新增 7 個遷移：0090、0091、0092、0105 是新增欄位；0121、0122、0123 是 `CONCURRENTLY IF NOT EXISTS` 索引。均為新檔、每檔一條語句，沒有修改已發布遷移。採納當時本機沒有 PostgreSQL，只有 CI 空庫全新安裝；既有資料庫的升級路徑於 2026-11-09 補驗，見下方「既有資料庫升級驗證」。
 - 隱藏內容掃描涵蓋 48 個 commit 各自的新增行及 PR #323：行內 ≥40 空白、>400 字元行、eval／new Function／globalThis.require、長 base64／hex、零寬與雙向字元。命中僅四條已判讀的長行（Picture sizes、部署說明、測試 SVG）與 HMAC `digest("base64url")`，均為正常內容，無隱藏載荷。
 - Co-authored-by 致謝：Claude Opus 5.5 <noreply@anthropic.com>、cunyikang <cunyikang@qq.com>、FelixFtch <143968032+FelixFtch@users.noreply.github.com>、granary17 <98481815+granary17@users.noreply.github.com>。
 
@@ -45,6 +45,14 @@ issue #320 之後無新增，issue 水位不變。
 - 公開樣本只下載一次後由 localhost fake server 重播：Google Research RSS 100 筆、Hugging Face RSS 895 筆，以及各自最新一篇原文；以 load hook 載入起點 `92d91d7` 原始碼，與採納後比對。995 筆的 URL、標題、日期、摘要、正文與狀態完全相同；兩篇正文分別 9424、9686 字元，SHA-256 與日期也完全相同。這項比對未呼叫模型或連線資料庫。
 - 預設 Node.js 26.12.1 的 standalone 為 248/249：既有 secure-proxy fixture 把 IP 設為 SNI，Node 26 拋 `ERR_INVALID_ARG_VALUE`；同一程式與測試在專案指定的 Node 24.22.1 通過。沒有修改 TLS 驗證或放寬斷言。
 - `git diff --check` 唯一提示為上游原有的 `tests/collection-body-preservation.test.ts:73` 檔尾空行；保留上游內容，沒有為格式建立額外分岔。
+
+### 既有資料庫升級驗證（2026-11-09，`main` `94a2492`）
+
+- 環境：EDB 官方免安裝 zip `postgresql-17.11-5-windows-x64-binaries.zip`（與 CI 的 `postgres:17` 同主版本；EDB 未公布雜湊、執行檔無數位簽章，記下 SHA-256 `80379b2c04d51c30225532e0ae04509899141e9957ed096fe749d7fd9df8f82f`，Defender 掃描無威脅），只聽 `127.0.0.1:5433`，未註冊服務；Node.js 24.22.1。驗完已停止並移除。
+- 起點：以採納前 `92d91d7` 的遷移檔（0001–0089 共 64 檔，與現行同名檔內容相同）建 `aihot_upgrade_test`，灌入受影響三表的樣本：`sources` 4 列（四種 tier、三種參與模式）、`feedback` 200 列（五種狀態）、`articles` 50,000 列（含帶 `&sn=`、帶 `#` 片段的微信長網址身分鍵、`/s/` 短網址、`raw.externalId` 微信與非微信值）。
+- 升級：在 `main` 執行 `npm run db:migrate`，exit 0，依序 `applied` 0090、0091、0092、0105（transaction，3–15ms）與 0121、0122、0123（index，88–135ms），`7 migration(s) applied`；重跑回報 `database is up to date`。
+- 結果：`sources.selection_class`、`feedback.kind`、`feedback.idea` 為可 NULL `text`，`sources.uses` 為 `text[] NOT NULL DEFAULT '{}'`，既有列分別為 NULL 與 `{}`；三個 `articles_wechat_*` 索引 `indisvalid`、`indisready` 皆為 true，`EXPLAIN` 對應查詢都走該索引。三表原有欄位與 0089 以前 `schema_migrations` 的逐列 MD5 前後相同；刪除樣本後 `pg_dump --schema-only` 與同版本空庫全新安裝逐行相同。
+- `npm test`：樣本留在模板庫時，告警與讀取負載測試會把樣本算進積壓與信源數而失敗（測試假設模板是空庫），故以刪除樣本的升級庫副本 `aihot_upgraded_test` 為模板跑：1042 項中 1010 通過、26 失敗、6 取消。其中 16 項是 Windows 本機限制，與遷移無關：`backup.test.ts` 10 項（GNU tar 把 `C:` 當遠端主機、建 symlink 需權限、`pg_dump` 錯誤訊息被在地化，且該檔跑完不退出）、`analyze-shutdown.test.ts` 與 `translate-shutdown.test.ts` 6 項（Windows 沒有可攔截的 SIGTERM，120 秒逾時），三檔合計 10 失敗 6 取消，在空庫全新安裝上結果相同；`page-metadata`、`malformed-public-paths` 14 項是先跑測試、未先 `npm run build -w @aihot/web`，建置後與並行時偶發失敗的 `signals`、`topics-withdrawal` 一起重跑 26/26 通過。同一 commit 在 Linux 的 [check.yml run 42414832835](https://github.com/SanHsien/AIHOT/actions/runs/42414832835) 完整 `npm test` 成功。
 
 ## Main commits
 
