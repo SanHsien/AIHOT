@@ -1,8 +1,49 @@
 # 上游審查紀錄
 
-最後審查：2026-11-03（commit 水位 `cd424b0`，PR 水位 #332、issue 水位 #320；無追蹤中的 open PR）
+最後審查：2026-11-10（commit 水位 `8e02c95`，PR 水位 #382、issue 水位 #340；追蹤中的 open PR：#375）
 
 本檔只記可執行結論。機器水位與 open PR head SHA 放在 [`tools/upstream_baseline.json`](../tools/upstream_baseline.json)。相同 SHA、狀態與庫存不重審；任一項變動才重新評估。
+
+## 2026-11-10 整樹採納（`cd424b0..8e02c95`）
+
+fetch 確認的 main `8e02c9578b6917ce0b2ed077f61606673ad24008`：51 個 commit、118 個路徑、+4514／-483。做法同 2026-11-03：把 `git diff cd424b0 upstream/main` 以 `git apply --3way` 套到 fork 樹。審查過程中上游又前進一個 commit（`9a7f5bd` → `8e02c95`，即 #382 合併），該增量另行套用，無衝突。
+
+- 衝突兩處，已人工合併：`AGENTS.md`（上游在簡中安全閥句加入 `BAIDU_PUSH_ENABLED`，fork 是繁中改寫，只把該變數加進繁中句，上游其餘簡中規則不蓋回）與 `apps/web/app/features/feed/FeedItem.tsx`（上游在 X 貼文摘要包 `shortAddresses(...)`，fork 保留 `viewTransition={!isPhone()}`，兩者並存）。其他與分岔登記重疊的 `apps/web/app/routes/item.tsx`、`publication/agent.ts`、`publication/items.ts`、`contracts/src/http-policy.ts`、`apps/web/tests/navigation-performance.test.ts` 三方合併無衝突；`http-policy.ts` 的 `replaceAll("*", () => …)` 仍在，上游新增 `canonical` 規則與貼文尾巴（`pastedPage`）轉址不觸及它。分岔登記列數由檢查器實算為 16 列，與實際變更吻合，無需新增或刪列。
+- 分岔收斂條件逐條對照（上游本次有改動的分岔登記檔，以 `git show upstream/main:<檔案>` 讀取）：`http-policy.ts` 上游 `prefix` 規則仍是 `rule.location.replace("*", pathname.slice(...))`（字串替換值，`$` 序列仍會被解讀），保留 `replaceAll` 補丁；`agent.ts` 上游 `linkText` 仍只跳脫 `[`、`]`，且沒有 `timelineAt` 輸出，保留；`items.ts` 上游 `ApiItemRow` 與 `API_ITEM_COLUMNS` 的取捨與 fork 差異未變，保留；`item.tsx` 上游目錄邊界攔截仍只呼叫 `preventDefault`、`FeedItem.tsx` 仍無 phone 判斷（本次只多 `shortAddresses`），保留。16 列分岔登記全部維持。
+- 新增 4 個遷移：0124、0125、0126 是 `notify_targets_kind_check` 的三段式（DROP IF EXISTS → ADD … NOT VALID → VALIDATE），0127 是 `articles ADD COLUMN cover jsonb`（可 NULL、無預設值）。均為新檔、每檔一條語句，未修改已發布遷移。本機沒有 PostgreSQL，**尚未在有資料的庫上驗證升級**，見 ROADMAP；CI 空庫全新安裝在推送後才有結果。
+- 隱藏內容掃描：對 `cd424b0..8e02c95` 的 4632 條新增行掃描「行內 ≥40 空白」「>400 字元行」「eval／new Function／globalThis.require／child_process／exec／atob／fromCharCode」「≥120 字 base64」「≥64 位 hex」「零寬與雙向字元」，0 命中。另對標題含 fix 或牽涉媒體、轉址、輸入處理的 commit 讀 diff：`f925285`（X 影片簽章代理，`isXVideoUrl` 只放 `https://video.twimg.com` 的 `amplify_video|ext_tw_video|tweet_video` MP4，HMAC 簽章與期限仍必過）、`http-policy.ts`（貼文尾巴轉址只改相對路徑、API 路徑不動、不跨站）、百度推送（預設 `BAIDU_PUSH_ENABLED=false`）、釘釘推送（預設 `DINGTALK_CONTENT_PUSH_ENABLED=false`）。
+- 測試時間炸彈檢查：新增測試內寫死日期共 2021–2026 年份的夾具；`baidu-push.test.ts` 的 `DAY1`／`DAY2` 以參數注入時鐘（`submitBaiduPush(DAY1)`），`mentions.test.ts` 的 `at` 與頁面測試的日期只作為夾具資料，沒有「相對現在的視窗」比較，未發現會隨日期過期的斷言。
+- 站點預設：`4e45b6b` 使 `SITE.poweredBy` 預設為 `{ name: "AIHOT", url: "https://aihot.news" }`，側欄與「我的」頁顯示「由 AIHOT 驅動」；`4106602` 加 `SEO_TITLES`，`53e534b` 加 `SITE.siteVerification`。三者都是 `site/site.ts` 的選填設定，原樣採納；本 fork 沒有自己的部署，若日後部署自建站，依 `AGENTS.md`「自建站不得使用 AIHOT 名稱與 Logo」把 `poweredBy` 設為 `null` 或自己的名稱。
+
+| 上游 commit | 裁決與理由 |
+|---|---|
+| `a3d0263`、`15f7b2d`（#336） | adopt：X 歷史 backlog 只留一份、超過 3 天放棄；分片重組後已移走帳號的積壓貼文仍入庫。直接回應 issue #335 的花費事故。 |
+| `1e839a7`（#337） | adopt：側欄只點亮最具體的一項（`Sidebar.tsx`、`nav.ts`）。不在導航分岔登記檔內。 |
+| `6aafd93`、`22e3105`、`0ce2d00`（#342） | adopt：釘釘群機器人內容推送，遷移 0124–0126；預設關。 |
+| `4106602`、`4e45b6b`、`53e534b`（#343–#345） | adopt：`SEO_TITLES`、`poweredBy`、`siteVerification`（見上）。 |
+| `df70f8f`、`4edbe4b`、`61ef3bb` | adopt：百度主動推送（`baidu-push.ts`、排程、`.env.example`、`AGENTS.md` 安全閥句），預設關。 |
+| `92e4a15`、`ad3e934`、`5e17c25`、`61f72c5`、`377e6c9`、`6fe293d`、`d92d42f` 等 | adopt：錯誤頁與 Cookie 同意、導航、頁腳不進正文（issue #338）及相關正文抽取回歸。 |
+| `265ddc2`（#364） | adopt：文章封面 `cover.ts` 與遷移 0127。 |
+| `c605442`、`ee2ba20`、`5f42520` 等 | adopt：提及（mentions）、短位址、版面與 SEO（`seo.ts`、`item.tsx`、`report-latest.tsx` 等）。 |
+| `f925285`、`2d8410f`（#373、#377） | adopt：X 影片代理與 Range 回應、socialdata 與 sanitize 補強（讀 diff 見上）。 |
+| `cf4a9d9`、`b5297e8`（#368、#378） | adopt：`http-policy.ts` 的 canonical 轉址與貼文尾巴轉址；與 fork 的 `replaceAll` 修正並存。 |
+| `623c629`、`a6641fa`、`a040b22`、`f71cf5c`、`fb7ed2c`（#371、#376、#379、#380、#382） | adopt：回饋與 X 改名處理（`feedback.ts`、`x-renames.ts`、`clicks.ts`）。 |
+| 其餘「同步引擎」commit | adopt：整樹套用，內容見 `git log cd424b0..upstream/main`；沒有逐筆挑選。 |
+
+| 上游 PR／issue | 裁決與重新審查條件 |
+|---|---|
+| #336、#337、#339、#341–#374、#376–#382 | merged，對應以上 commit，全部採納。 |
+| #375（open，kernelvale，head `c03474fe5380fdd2c3ed4ee1b0bfac71dbdcdac7`，base `ad3e934`，1 commit、8 檔、+119／-30） | defer，已讀完整 diff：把 `liveStory`、`resolveStory` 的合併鏈改為遞迴 CTE，`mergeStoryInto` 改在單一交易內重新發布，`groupSignal` 重設訊號並改用 `ANY(...::text[])` 避開 65535 參數上限。內容看來合理，但 PR 未合併，且動到事件歸組與合併交易，需要有 PostgreSQL 的完整 `npm test` 驗證（本機沒有）。fork 定位是跟進上游主線，不先於上游採納未合併的外部 PR。已在 `monitored` 釘住 head 與狀態；觸發條件：該 PR 合併（採納合併後的 commit）、關閉（記為 skip）或 head 改變（重讀 diff）。 |
+| issue #334 | 作者撤回，內容已移除；skip。 |
+| issue #335 | closed；提出「24 小時花費上限」，維護者決定不加（花費異常只告警），根因已由 #336 修；skip，fork 不另加。重審條件：上游重開。 |
+| issue #338 | closed；Cookie 同意與導航混入正文，上游已修並重新抽取；對應修正隨本次採納。 |
+| issue #340 | closed；釘釘推送需求，由 #342 實作；已採納。 |
+
+### 本機驗證（2026-11-10，整合來源 `8e02c95`）
+
+- Node.js 24.22.1（`PATH` 前置 fnm 的 v24.22.1）：`npm run typecheck` exit 0、`npm run build -w @aihot/web` exit 0、`npm run test:web` 67/67、`npm run test:standalone` 280/280（含 fork 安全回歸）、`npm audit --package-lock-only` 0 vulnerabilities；`python tools/check_upstream_updates.py --strict` exit 0。
+- `tools/dev_check.ps1`（預設 Node.js 26.12.1，BelowNormal 優先權）exit 0：環境驗證、typecheck、SSR build、網頁 67/67、分岔檢查（16 列吻合）、分岔契約 9/9、freshness 契約 2/2。
+- 未做：需要 PostgreSQL 的 `npm test`（本機 5432 無監聽）、新遷移 0124–0127 在有資料庫上的升級驗證；X 歷史 backlog、釘釘、百度推送、文章封面的行為只有上游測試的證據，沒有實機採集（安全閥關閉）。
 
 ## 2026-11-03 追加採納（`41cee09..cd424b0`）
 

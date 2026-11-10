@@ -50,6 +50,13 @@ async function uploadImage(data: Buffer, filename: string): Promise<string> {
   return json.data.image_key;
 }
 
+/** A picture this app uploaded, read back by its key (Feishu gives an app only its own uploads). */
+export async function downloadImage(imageKey: string): Promise<Buffer> {
+  const res = await fetch(`${API}/im/v1/images/${encodeURIComponent(imageKey)}`, { headers: { authorization: `Bearer ${await tenantToken()}` }, signal: AbortSignal.timeout(30_000) });
+  if (!res.ok) throw new Error(`feishu image: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
 async function sendToChat(chatId: string, msgType: "text" | "post" | "interactive", content: unknown): Promise<string> {
   const res = await fetch(`${API}/im/v1/messages?receive_id_type=chat_id`, {
     method: "POST",
@@ -93,6 +100,11 @@ export interface Finding {
    * top-up), so the agent is not woken for it.
    */
   owner?: true | "only";
+  /**
+   * The agent is the one to act: whenever the owner is messaged about it, the agent is woken first and the
+   * message says so instead of asking him to pass it on (operations/alerts.ts).
+   */
+  agentFirst?: true;
   /**
    * Do not message the owner, including when it clears or when a follow-up is derived from the handoff.
    * On the incident itself it is now or today and is woken: a later finding is not. One such key is one
@@ -272,8 +284,9 @@ async function screenshotFor(fb: { id: number; screenshot_key: string | null; cr
 /**
  * Forwards one feedback to the internal chat, with its screenshot. Until that succeeds the feedback keeps
  * the reason in forward_error, and the forwarding sweep (operations/feedback.ts) tries it again.
+ * `tell` false: the chat is not told, and only the screenshot goes to Feishu ("kept").
  */
-export async function forwardFeedbackToFeishu(id: number): Promise<"sent" | "disabled"> {
+export async function forwardFeedbackToFeishu(id: number, tell = true): Promise<"sent" | "kept" | "disabled"> {
   if (!feishuInternalEnabled()) return "disabled";
   const chat = credential("integrations", "FEISHU_INTERNAL_CHAT_ID");
   if (!chat) return "disabled";
@@ -282,6 +295,10 @@ export async function forwardFeedbackToFeishu(id: number): Promise<"sent" | "dis
   if (!fb) return "disabled";
   try {
     const shot = await screenshotFor(fb);
+    if (!tell) {
+      await sql`UPDATE feedback SET forward_error = NULL WHERE id = ${id}`;
+      return "kept";
+    }
     const paragraphs: unknown[][] = [
       [{ tag: "text", text: fb.content }],
       [{ tag: "text", text: `页面：${fb.page_url ?? "—"}` }],
@@ -304,7 +321,14 @@ export function postWebhook(url: string, card: unknown): Promise<{ status: "sent
   return sendWebhook(url, { msg_type: "interactive", card });
 }
 
-async function sendWebhook(url: string, message: unknown): Promise<{ status: "sent" | "failed" | "unknown"; body: string }> {
+/**
+ * POST a custom-bot message and read the acknowledgement. `code` picks the bot's result code (0 = accepted)
+ * from its JSON answer; the other bots (notify/dingtalk.ts) differ only there.
+ */
+export async function sendWebhook(
+  url: string, message: unknown,
+  code: (json: Record<string, unknown> | null) => unknown = (json) => json?.code ?? json?.StatusCode,
+): Promise<{ status: "sent" | "failed" | "unknown"; body: string }> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -315,9 +339,8 @@ async function sendWebhook(url: string, message: unknown): Promise<{ status: "se
   // A successful HTTP transport is not an acknowledgement: proxies can return HTML or empty JSON.
   let status: "sent" | "failed" | "unknown" = res.status >= 400 && res.status < 500 ? "failed" : "unknown";
   try {
-    const json = JSON.parse(body) as { code?: number; StatusCode?: number } | null;
-    const code = json?.code ?? json?.StatusCode;
-    if (res.ok && typeof code === "number") status = code === 0 ? "sent" : "failed";
+    const result = code(JSON.parse(body) as Record<string, unknown> | null);
+    if (res.ok && typeof result === "number") status = result === 0 ? "sent" : "failed";
   } catch {
     // non-JSON body
   }

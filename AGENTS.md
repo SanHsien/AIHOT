@@ -28,7 +28,7 @@
 - 所有公開出口都從 `packages/backend/src/publication/` 單一讀取層取資料，新增公開出口也一樣。
 - 讀者開頁不觸發模型；模型只在 worker 工作內呼叫。
 - 付費請求必須經過 `providers/receipts.ts` 與預算熔斷，不得繞開。
-- 安全閥只有設成 `true` 才開啟。開發時保持 `COLLECT_ENABLED`、`MODEL_CALLS_ENABLED`、`FEISHU_*_ENABLED`、`INDEXNOW_SUBMIT_ENABLED` 關閉；測試只連本地假服務，不訪問任何外部服務。
+- 安全閥只有設成 `true` 才開啟。開發時保持 `COLLECT_ENABLED`、`MODEL_CALLS_ENABLED`、`FEISHU_*_ENABLED`、`INDEXNOW_SUBMIT_ENABLED`、`BAIDU_PUSH_ENABLED` 關閉；測試只連本地假服務，不訪問任何外部服務。
 - 信源預設只展示摘要與原文連結（`site_fulltext` 關）；只有來源明確允許時才開啟全文。
 - 公開內容匿名，管理員與訪客看到的一樣；管理後台只允許管理員。
 - 停用或替換功能、機制時，同一改動要一併移除程式碼、測試、文件與保存狀態（庫表與欄位、排程、settings、環境變數與 `.env.example` 的項目）；若會刪除使用者資料，必須在 `docs/deploy.md` 的更新說明寫明。加鎖、重試、相容舊格式、開關與兜底，先要有證據：真實部署發生過，或平台語義決定它會發生。

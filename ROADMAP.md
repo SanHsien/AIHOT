@@ -8,15 +8,18 @@
 
 2026-11-03：以 `92d91d7` 為起點整樹採納上游 `79d962e..41cee09`（48 個 commit、7 個新增遷移），保留已登記安全、導航與站內時間分岔；其後追加採納 #323 合併的 `dcb366e`、`cd424b0`（Menu 鍵盤導航）；commit 水位為完整 `cd424b0a513c7c8535b6f291b106a3086d6b75bf`，PR 水位 #332，無追蹤中的 open PR。Node.js 24.22.1 的完整本機閘門通過（`27ced027`：網頁 65/65、standalone 249/249、分岔契約 9/9；追加採納 `cd424b0` 後 `dev_check` 網頁 67/67、分岔契約 9/9），上游 `--strict` exit 0；本機無可用 `_test`／`_ci` PostgreSQL（5432 無監聽）。2026-11-03 `27ced027` 推送後的 [check.yml run 41619101964](https://github.com/SanHsien/AIHOT/actions/runs/41619101964)：`check`、`docker` 兩個 job 均成功，該 job 的 PostgreSQL 是空庫（`aihot_ci`），驗到的是全新安裝。2026-11-09 以 PostgreSQL 17.11 在有資料的 0089 庫上驗證 7 個遷移（0090、0091、0092、0105、0121、0122、0123）的升級路徑：全部套用、原有資料雜湊不變、升級後 schema 與全新安裝相同（[docs/UPSTREAM.md](docs/UPSTREAM.md)「既有資料庫升級驗證」）。
 
+2026-11-10：再以 `cd424b0..8e02c95`（51 個 commit、4 個新遷移 0124–0127）整樹採納，commit 水位改為完整 `8e02c9578b6917ce0b2ed077f61606673ad24008`，PR 水位 #382、issue 水位 #340，追蹤中的 open PR 為 #375（defer）。Node.js 24.22.1 下 typecheck、SSR build、網頁 67/67、standalone 280/280 通過，`--strict` exit 0；仍無本機 PostgreSQL。
+
 ## 近期：可以直接動手
 | 項目 | 為什麼 | 驗收方式 | 建議執行者 | 證據 |
 | --- | --- | --- | --- | --- |
-| 審查上游 `cd424b0..4e45b6b`：12 個 commit、PR #336–#344、issue #334–#340 | 2026-11-08 `python tools/check_upstream_updates.py --strict` 回報 behind 10（上游當時在 `4106602`）；其後查得上游 PR #344 已於 2026-11-07 19:14Z 合併（merge commit `4e45b6b`），2026-11-08 以 `gh api repos/KKKKhazix/AIHOT/compare/cd424b0...main` 查得 ahead 12，開工前先重跑 `--strict` 取得當下的範圍。範圍含釘釘群機器人推送（`6aafd93` 起、遷移 0124–0126）、X 歷史 backlog 修正、側欄高亮、正文抽取；水位尚未推進 | 逐筆判斷寫進 `docs/UPSTREAM.md`；採納者保留已登記分岔、`python tools/check_divergence.py` 通過、完整本機閘門綠；`--strict` exit 0 後才推進 `tools/upstream_baseline.json`；PR 只打 `SanHsien/AIHOT` | Claude Opus | `tools/upstream_baseline.json`（`cd424b0`、PR 332、issue 320）；`docs/UPSTREAM.md` |
+| 在有資料的庫上驗證 4 個新遷移（0124–0127）的升級路徑 | 2026-11-10 採納 `cd424b0..8e02c95` 帶入 0124、0125、0126（`notify_targets_kind_check` 三段式）與 0127（`articles.cover jsonb`）；本機 5432 無 PostgreSQL，只有 CI 空庫全新安裝能驗；0127 對大表是 metadata-only 加欄 | 沿用 [docs/UPSTREAM.md](docs/UPSTREAM.md)「既有資料庫升級驗證」做法：0089 起點庫灌樣本，`npm run db:migrate` 套到 0127，確認舊資料雜湊不變、`notify_targets` 既有列通過 VALIDATE、升級後 schema 與全新安裝相同，結果補進該節 | Claude Opus | [database/migrations/0124_notify_targets_kind_drop_check.sql](database/migrations/0124_notify_targets_kind_drop_check.sql)、[0127_article_cover.sql](database/migrations/0127_article_cover.sql) |
 
 ## 中期：等條件成立再做
 | 項目 | 觸發條件 | 驗收方式 | 建議執行者 | 證據 |
 | --- | --- | --- | --- | --- |
 | 建立自訂行業站與選文校準 | 維護者確認品牌、信源、條款與標註樣本 | 依 customize 與 selection 文件完成設定、跑標註評測與本機 smoke；開啟外部採集及付費模型前確認預算 | 維護者 | [AGENTS.md:20](AGENTS.md)、[AGENTS.md:22](AGENTS.md)、[README.md:94](README.md) |
+| 採納上游 PR #375（事件歸組狀態一致性、批量召回、連續合併解析） | PR 在上游合併，或 head 由 `c03474f` 改變（`tools/upstream_baseline.json` 的 `monitored` 會在 `--strict` 報出） | 讀合併後 diff，有 PostgreSQL 時跑 `tests/events.test.ts`、`signals.test.ts`、`embedding-dimensions.test.ts`；記 [docs/UPSTREAM.md](docs/UPSTREAM.md) | Claude Opus | [docs/UPSTREAM.md](docs/UPSTREAM.md)「2026-11-10 整樹採納」 |
 | 收斂上游已修好的 fork 補丁 | 上游修改對應安全或導航檔案 | 比較分岔行為，等效修正才刪 fork 補丁與登記列；相關回歸及 `python tools/check_divergence.py` 通過 | Codex | [docs/DECISIONS.md:63](docs/DECISIONS.md)、[AGENTS.md:12](AGENTS.md) |
 
 ## 刻意不做
