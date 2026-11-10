@@ -1,6 +1,6 @@
 # 上游審查紀錄
 
-最後審查：2026-11-10（commit 水位 `8e02c95`，PR 水位 #382、issue 水位 #340；追蹤中的 open PR：#375）
+最後審查：2026-11-10（commit 水位 `8e02c95`，PR 水位 #383、issue 水位 #340；追蹤中的 open PR：#375、#383）
 
 本檔只記可執行結論。機器水位與 open PR head SHA 放在 [`tools/upstream_baseline.json`](../tools/upstream_baseline.json)。相同 SHA、狀態與庫存不重審；任一項變動才重新評估。
 
@@ -34,6 +34,7 @@ fetch 確認的 main `8e02c9578b6917ce0b2ed077f61606673ad24008`：51 個 commit�
 |---|---|
 | #336、#337、#339、#341–#374、#376–#382 | merged，對應以上 commit，全部採納。 |
 | #375（open，kernelvale，head `c03474fe5380fdd2c3ed4ee1b0bfac71dbdcdac7`，base `ad3e934`，1 commit、8 檔、+119／-30） | defer，已讀完整 diff：把 `liveStory`、`resolveStory` 的合併鏈改為遞迴 CTE，`mergeStoryInto` 改在單一交易內重新發布，`groupSignal` 重設訊號並改用 `ANY(...::text[])` 避開 65535 參數上限。內容看來合理，但 PR 未合併，且動到事件歸組與合併交易，需要有 PostgreSQL 的完整 `npm test` 驗證（本機沒有）。fork 定位是跟進上游主線，不先於上游採納未合併的外部 PR。已在 `monitored` 釘住 head 與狀態；觸發條件：該 PR 合併（採納合併後的 commit）、關閉（記為 skip）或 head 改變（重讀 diff）。 |
+| #383（open，KKKKhazix，head `04bc183a709462e6e538a5b26ea313e887bf8e35`，base `8e02c95`，2 檔、+2／-2） | defer，已讀完整 diff：`apps/worker/src/schedules.ts` 的 `sources.adapt-intervals` 排程加 `missed: "once"`，`tests/agent-wake.test.ts` 把一個 Finding 的 key 改為 `free-tokens.inbox:1:0`。審查期間（2026-11-10 10:20Z）才開出，未合併；不先於上游採納。已在 `monitored` 釘住 head 與狀態；觸發條件：合併後採納合併 commit，head 改變時重讀 diff。 |
 | issue #334 | 作者撤回，內容已移除；skip。 |
 | issue #335 | closed；提出「24 小時花費上限」，維護者決定不加（花費異常只告警），根因已由 #336 修；skip，fork 不另加。重審條件：上游重開。 |
 | issue #338 | closed；Cookie 同意與導航混入正文，上游已修並重新抽取；對應修正隨本次採納。 |
