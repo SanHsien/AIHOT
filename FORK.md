@@ -31,6 +31,6 @@
 - 維護文件：`docs/DEVELOPMENT.md`、`docs/DECISIONS.md`、`docs/DIVERGENCE.md`、`docs/UPSTREAM.md`。
 - 維護工具：`tools/check_divergence.py`、`tools/upstream_baseline.json`、`tools/dev_check.ps1`、`tools/dev_check.sh`、`scripts/verify-env.py`。
 - CI：`.github/workflows/fork-check.yml`。
-- Fork 自有測試：`apps/web/tests/day-header-year.test.ts`、`apps/web/tests/report-year.test.ts`、`tests/sign-in-paths.standalone.test.ts`。上游已把同類斷言併入既有測試，維護者允許刪檔時可刪除（背景見 [`docs/UPSTREAM.md`](docs/UPSTREAM.md) 整樹採納段）。
+- Fork 自有測試：`apps/web/tests/day-header-year.test.ts`、`apps/web/tests/report-year.test.ts`、`tests/sign-in-paths.standalone.test.ts`、`tests/rss-summary-body.test.ts`。上游已把同類斷言併入既有測試，維護者允許刪檔時可刪除（背景見 [`docs/UPSTREAM.md`](docs/UPSTREAM.md) 整樹採納段）。
 
 核心產品程式碼、資料庫、Prompt 與部署流程原則上直接跟隨上游；本 fork 自行移植的上游 PR 必須在分岔表留下逐檔判準。

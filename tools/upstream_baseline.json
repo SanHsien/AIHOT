@@ -4,7 +4,7 @@
   "branches": [
     "main"
   ],
-  "reviewed_through": "8e02c9578b6917ce0b2ed077f61606673ad24008",
+  "reviewed_through": "7140b6f6f5a336fbd5668021c5ada750c7333ff2",
   "reviewed_date": "2026-11-10",
   "reviewed_pr_through": 383,
   "reviewed_issue_through": 340,
@@ -12,17 +12,12 @@
   "latest_release": null,
   "reviewed_open_prs": {},
   "reviewed_open_issues": [],
-  "notes": "2026-11-10: adopted the entire cd424b0..8e02c95 upstream delta (51 commits, 118 paths, +4514/-483, 4 new migrations 0124-0127), retaining documented fork security, navigation and timelineAt patches. PRs #336-#374 and #376-#382 are merged and adopted; PR #375 (external contributor) and PR #383 (maintainer sync, 2 lines) are open, deferred and pinned in monitored. Issues #334-#340 are all closed upstream and covered by adopted commits or withdrawn. See docs/UPSTREAM.md for decisions and database verification limits.",
+  "notes": "2026-11-10: adopted the entire cd424b0..7140b6f upstream delta (52 commits, 4 new migrations 0124-0127), retaining documented fork security, navigation and timelineAt patches. PRs #336-#374 and #376-#383 are merged and adopted; PR #375 (external contributor) is open, deferred and pinned in monitored; PR #383 merged as 7140b6f and is adopted. Issues #334-#340 are all closed upstream and covered by adopted commits or withdrawn. See docs/UPSTREAM.md for decisions and database verification limits.",
   "decision_log": "docs/UPSTREAM.md",
   "monitored": [
     {
       "item": "pr#375",
       "head": "c03474fe5380fdd2c3ed4ee1b0bfac71dbdcdac7",
-      "state": "open"
-    },
-    {
-      "item": "pr#383",
-      "head": "04bc183a709462e6e538a5b26ea313e887bf8e35",
       "state": "open"
     }
   ]

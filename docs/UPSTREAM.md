@@ -1,18 +1,19 @@
 # 上游審查紀錄
 
-最後審查：2026-11-10（commit 水位 `8e02c95`，PR 水位 #383、issue 水位 #340；追蹤中的 open PR：#375、#383）
+最後審查：2026-11-10（commit 水位 `7140b6f`，PR 水位 #383、issue 水位 #340；追蹤中的 open PR：#375）
 
 本檔只記可執行結論。機器水位與 open PR head SHA 放在 [`tools/upstream_baseline.json`](../tools/upstream_baseline.json)。相同 SHA、狀態與庫存不重審；任一項變動才重新評估。
 
-## 2026-11-10 整樹採納（`cd424b0..8e02c95`）
+## 2026-11-10 整樹採納（`cd424b0..7140b6f`）
 
-fetch 確認的 main `8e02c9578b6917ce0b2ed077f61606673ad24008`：51 個 commit、118 個路徑、+4514／-483。做法同 2026-11-03：把 `git diff cd424b0 upstream/main` 以 `git apply --3way` 套到 fork 樹。審查過程中上游又前進一個 commit（`9a7f5bd` → `8e02c95`，即 #382 合併），該增量另行套用，無衝突。
+fetch 確認的 main `8e02c95`（commit 水位已再推到 `7140b6f`，見下）：51 個 commit、118 個路徑、+4514／-483。做法同 2026-11-03：把 `git diff cd424b0 upstream/main` 以 `git apply --3way` 套到 fork 樹。審查過程中上游又前進一個 commit（`9a7f5bd` → `8e02c95`，即 #382 合併），該增量另行套用，無衝突。其後 #383 合併為 `7140b6f`（2 檔、+2／-2），同日追加採納，總計 52 個 commit。
 
 - 衝突兩處，已人工合併：`AGENTS.md`（上游在簡中安全閥句加入 `BAIDU_PUSH_ENABLED`，fork 是繁中改寫，只把該變數加進繁中句，上游其餘簡中規則不蓋回）與 `apps/web/app/features/feed/FeedItem.tsx`（上游在 X 貼文摘要包 `shortAddresses(...)`，fork 保留 `viewTransition={!isPhone()}`，兩者並存）。其他與分岔登記重疊的 `apps/web/app/routes/item.tsx`、`publication/agent.ts`、`publication/items.ts`、`contracts/src/http-policy.ts`、`apps/web/tests/navigation-performance.test.ts` 三方合併無衝突；`http-policy.ts` 的 `replaceAll("*", () => …)` 仍在，上游新增 `canonical` 規則與貼文尾巴（`pastedPage`）轉址不觸及它。分岔登記列數由檢查器實算為 16 列，與實際變更吻合，無需新增或刪列。
 - 分岔收斂條件逐條對照（上游本次有改動的分岔登記檔，以 `git show upstream/main:<檔案>` 讀取）：`http-policy.ts` 上游 `prefix` 規則仍是 `rule.location.replace("*", pathname.slice(...))`（字串替換值，`$` 序列仍會被解讀），保留 `replaceAll` 補丁；`agent.ts` 上游 `linkText` 仍只跳脫 `[`、`]`，且沒有 `timelineAt` 輸出，保留；`items.ts` 上游 `ApiItemRow` 與 `API_ITEM_COLUMNS` 的取捨與 fork 差異未變，保留；`item.tsx` 上游目錄邊界攔截仍只呼叫 `preventDefault`、`FeedItem.tsx` 仍無 phone 判斷（本次只多 `shortAddresses`），保留。16 列分岔登記全部維持。
 - 新增 4 個遷移：0124、0125、0126 是 `notify_targets_kind_check` 的三段式（DROP IF EXISTS → ADD … NOT VALID → VALIDATE），0127 是 `articles ADD COLUMN cover jsonb`（可 NULL、無預設值）。均為新檔、每檔一條語句，未修改已發布遷移。本機沒有 PostgreSQL，**尚未在有資料的庫上驗證升級**，見 ROADMAP；CI 空庫全新安裝在推送後才有結果。
 - 隱藏內容掃描：對 `cd424b0..8e02c95` 的 4632 條新增行掃描「行內 ≥40 空白」「>400 字元行」「eval／new Function／globalThis.require／child_process／exec／atob／fromCharCode」「≥120 字 base64」「≥64 位 hex」「零寬與雙向字元」，0 命中。另對標題含 fix 或牽涉媒體、轉址、輸入處理的 commit 讀 diff：`f925285`（X 影片簽章代理，`isXVideoUrl` 只放 `https://video.twimg.com` 的 `amplify_video|ext_tw_video|tweet_video` MP4，HMAC 簽章與期限仍必過）、`http-policy.ts`（貼文尾巴轉址只改相對路徑、API 路徑不動、不跨站）、百度推送（預設 `BAIDU_PUSH_ENABLED=false`）、釘釘推送（預設 `DINGTALK_CONTENT_PUSH_ENABLED=false`）。
 - 測試時間炸彈檢查：新增測試內寫死日期共 2021–2026 年份的夾具；`baidu-push.test.ts` 的 `DAY1`／`DAY2` 以參數注入時鐘（`submitBaiduPush(DAY1)`），`mentions.test.ts` 的 `at` 與頁面測試的日期只作為夾具資料，沒有「相對現在的視窗」比較，未發現會隨日期過期的斷言。
+- 百度推送的 token（`4edbe4b` 起）以純 HTTP 的 query string 送出（`baidu-push.ts` 的 `ENDPOINT` 為 `http://data.zz.baidu.com/urls`，`?site=…&token=…`），且 `config.baiduPushToken` 直接讀 `BAIDU_PUSH_TOKEN` 環境變數，不走 `credential()` 的憑證檔機制。這是上游行為，原樣採納；預設 `BAIDU_PUSH_ENABLED=false`，本 fork 不啟用（中國服務），不加分岔。若日後有人啟用，需自行評估明文傳輸 token 的風險。
 - 站點預設：`4e45b6b` 使 `SITE.poweredBy` 預設為 `{ name: "AIHOT", url: "https://aihot.news" }`，側欄與「我的」頁顯示「由 AIHOT 驅動」；`4106602` 加 `SEO_TITLES`，`53e534b` 加 `SITE.siteVerification`。三者都是 `site/site.ts` 的選填設定，原樣採納；本 fork 沒有自己的部署，若日後部署自建站，依 `AGENTS.md`「自建站不得使用 AIHOT 名稱與 Logo」把 `poweredBy` 設為 `null` 或自己的名稱。
 
 | 上游 commit | 裁決與理由 |
@@ -34,7 +35,7 @@ fetch 確認的 main `8e02c9578b6917ce0b2ed077f61606673ad24008`：51 個 commit�
 |---|---|
 | #336、#337、#339、#341–#374、#376–#382 | merged，對應以上 commit，全部採納。 |
 | #375（open，kernelvale，head `c03474fe5380fdd2c3ed4ee1b0bfac71dbdcdac7`，base `ad3e934`，1 commit、8 檔、+119／-30） | defer，已讀完整 diff：把 `liveStory`、`resolveStory` 的合併鏈改為遞迴 CTE，`mergeStoryInto` 改在單一交易內重新發布，`groupSignal` 重設訊號並改用 `ANY(...::text[])` 避開 65535 參數上限。內容看來合理，但 PR 未合併，且動到事件歸組與合併交易，需要有 PostgreSQL 的完整 `npm test` 驗證（本機沒有）。fork 定位是跟進上游主線，不先於上游採納未合併的外部 PR。已在 `monitored` 釘住 head 與狀態；觸發條件：該 PR 合併（採納合併後的 commit）、關閉（記為 skip）或 head 改變（重讀 diff）。 |
-| #383（open，KKKKhazix，head `04bc183a709462e6e538a5b26ea313e887bf8e35`，base `8e02c95`，2 檔、+2／-2） | defer，已讀完整 diff：`apps/worker/src/schedules.ts` 的 `sources.adapt-intervals` 排程加 `missed: "once"`，`tests/agent-wake.test.ts` 把一個 Finding 的 key 改為 `free-tokens.inbox:1:0`。審查期間（2026-11-10 10:20Z）才開出，未合併；不先於上游採納。已在 `monitored` 釘住 head 與狀態；觸發條件：合併後採納合併 commit，head 改變時重讀 diff。 |
+| #383（merged，`7140b6f`，2 檔、+2／-2） | adopt：`apps/worker/src/schedules.ts` 的 `sources.adapt-intervals` 加 `missed: "once"`，`tests/agent-wake.test.ts` 一個 Finding 的 key 改為 `free-tokens.inbox:1:0`。審查中途它尚為 open 並曾暫列 defer，合併後（2026-11-10 10:24Z）於同日採納，已移出 `monitored`。兩檔不在分岔登記內，3-way 套用無衝突。 |
 | issue #334 | 作者撤回，內容已移除；skip。 |
 | issue #335 | closed；提出「24 小時花費上限」，維護者決定不加（花費異常只告警），根因已由 #336 修；skip，fork 不另加。重審條件：上游重開。 |
 | issue #338 | closed；Cookie 同意與導航混入正文，上游已修並重新抽取；對應修正隨本次採納。 |
