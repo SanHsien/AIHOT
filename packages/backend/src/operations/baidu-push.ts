@@ -9,8 +9,8 @@ import { config } from "../config.ts";
 import { sql } from "../db.ts";
 import { siteUrl } from "../publication/links.ts";
 import { loadDiscoveryEntries } from "../publication/sitemap.ts";
+import { postUrls, runBudget, secureEndpoint, validRemain } from "./baidu-push-guard.ts";
 
-const ENDPOINT = "http://data.zz.baidu.com/urls";
 const MAX_URLS = 2000;
 const KEY = "baidu-push.state";
 /** `known`: inventory paths that are not new to Baidu; `remain`: what Baidu's last reply on `day` left, if known. */
@@ -39,9 +39,11 @@ export async function submitBaiduPush(now = new Date()) {
   if (!fresh.length) return { status: "empty" as const, urls: 0, more: false };
   const token = config.baiduPushToken;
   if (!config.baiduPushEnabled || !token) return { status: "disabled" as const, urls: 0, more: true };
+  const endpoint = secureEndpoint(config.baiduPushEndpoint); // never send the token over clear text
 
   const today = beijingDate(now);
-  let remain = row.value.day === today ? row.value.remain : null;
+  // A stored quota that is not a plausible count is forgotten: the first request relearns it with one URL.
+  let remain = row.value.day === today && validRemain(row.value.remain) ? row.value.remain : null;
   // Paths that left the inventory are dropped, so the list stays as long as the inventory; one that comes
   // back later (a page withdrawn and restored) is new to Baidu again. Progress is saved after every reply,
   // so a failure further on cannot make a retry submit what Baidu already accepted.
@@ -49,28 +51,19 @@ export async function submitBaiduPush(now = new Date()) {
   const kept = [...known].filter((loc) => current.has(loc));
   const accepted: string[] = [];
   const progress = () => save({ known: [...kept, ...accepted], day: today, remain });
+  const spend = runBudget();
   while (accepted.length < fresh.length && remain !== 0) {
+    spend();
     const batch = fresh.slice(accepted.length, accepted.length + (remain === null ? 1 : Math.min(remain, MAX_URLS)));
-    // The address as the platform shows it: site is the verified origin, unencoded.
-    const res = await fetch(`${ENDPOINT}?site=${config.siteUrl}&token=${encodeURIComponent(token)}`, {
-      method: "POST",
-      headers: { "content-type": "text/plain" },
-      body: batch.map((e) => siteUrl(e.loc)).join("\n"),
-      signal: AbortSignal.timeout(30_000),
-    });
-    const reply = await res.json().catch(() => null) as { remain?: number; message?: string } | null;
-    if (res.ok && typeof reply?.remain === "number") {
+    if (!batch.length) throw new Error("Baidu push failed: empty batch");
+    const reply = await postUrls(endpoint, config.siteUrl, token, batch.map((e) => siteUrl(e.loc)).join("\n"));
+    if (reply.kind === "accepted") {
       accepted.push(...batch.map((e) => e.loc));
       remain = reply.remain;
-      await progress();
-    } else if (res.status === 400 && reply?.message === "over quota") {
-      remain = 0;
-      await progress();
     } else {
-      // A revoked token, a site that lost its verification or Baidu being down fails the run, and a day of
-      // failures becomes a follow-up (operations/alerts.ts); nothing of this request is counted as sent.
-      throw new Error(`Baidu push failed: ${res.status} ${reply?.message ?? ""}`);
+      remain = 0;
     }
+    await progress();
   }
   return { status: accepted.length ? "sent" as const : "quota" as const, urls: accepted.length, more: fresh.length > accepted.length, sample: accepted.slice(0, 3) };
 }

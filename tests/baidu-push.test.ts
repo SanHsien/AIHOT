@@ -20,11 +20,14 @@ import { installModules, type SitemapEntry } from '@aihot/backend/modules';
 import { submitBaiduPush } from '@aihot/backend/operations/baidu-push';
 
 const originalFetch = globalThis.fetch;
+const ORIGINAL_ENDPOINT = config.baiduPushEndpoint;
+const ENDPOINT = 'https://data.zz.baidu.com/urls';
 after(closeDb);
 afterEach(async () => {
   globalThis.fetch = originalFetch;
   config.baiduPushEnabled = false;
   config.baiduPushToken = null;
+  config.baiduPushEndpoint = ORIGINAL_ENDPOINT;
   installModules([]);
   await sql`DELETE FROM settings WHERE key = 'baidu-push.state'`;
 });
@@ -41,9 +44,10 @@ function baidu(quota: number, reply?: (urls: string[]) => Response) {
   let remain = quota;
   config.baiduPushEnabled = true;
   config.baiduPushToken = TOKEN;
+  config.baiduPushEndpoint = ENDPOINT;
   globalThis.fetch = async (url, init) => {
     const u = new URL(String(url));
-    assert.equal(`${u.origin}${u.pathname}`, 'http://data.zz.baidu.com/urls');
+    assert.equal(`${u.origin}${u.pathname}`, ENDPOINT);
     assert.equal(u.searchParams.get('site'), config.siteUrl);
     assert.equal(u.searchParams.get('token'), TOKEN);
     const urls = String(init?.body).split('\n').filter(Boolean);
@@ -203,4 +207,41 @@ test('the report goes first, then pages that answer lasting searches, then stori
   assert.ok(at(`/story/${olderStory}`) < at('/items/baidu-newer'));
   assert.ok(at('/items/baidu-newer') < at('/items/baidu-older'));
   assert.ok(at('/items/baidu-older') < at('/about-new'), 'any other page last');
+});
+
+// Codex review F1/F2: the token must not travel in clear text, and a bad `remain` must not loop forever.
+test('a clear-text endpoint is refused, not sent to', async () => {
+  let paths = ['/p/old'];
+  pages(() => paths);
+  baidu(100);
+  await submitBaiduPush(DAY1);
+  paths = [...paths, '/p/new'];
+  config.baiduPushEndpoint = 'http://data.zz.baidu.com/urls';
+  offline();
+  await assert.rejects(submitBaiduPush(DAY1_LATER), /not https/);
+});
+
+test('a negative, fractional or persistently invalid remain fails the run after one request', async () => {
+  for (const bad of [-1, 1.5]) {
+    let paths = ['/p/old'];
+    pages(() => paths);
+    const { requests } = baidu(100, () => Response.json({ success: 1, remain: bad }));
+    await submitBaiduPush(DAY1);
+    paths = [...paths, '/p/new-a', '/p/new-b'];
+    await assert.rejects(submitBaiduPush(DAY1_LATER), /invalid remain/, String(bad));
+    assert.equal(requests.length, 1, 'no further request once the reply is not believable');
+    await sql`DELETE FROM settings WHERE key = 'baidu-push.state'`;
+  }
+});
+
+test('a stored remain that is not a count is forgotten and relearned with one URL', async () => {
+  let paths = ['/p/old'];
+  pages(() => paths);
+  const { requests } = baidu(100);
+  await submitBaiduPush(DAY1);
+  await sql`UPDATE settings SET value = jsonb_set(value, '{remain}', '-5'::jsonb), updated_at = now() WHERE key = 'baidu-push.state'`;
+  await sql`UPDATE settings SET value = jsonb_set(value, '{day}', '"2026-10-09"'::jsonb) WHERE key = 'baidu-push.state'`;
+  paths = [...paths, '/p/a', '/p/b'];
+  await submitBaiduPush(DAY1_LATER);
+  assert.equal(requests[0].length, 1);
 });

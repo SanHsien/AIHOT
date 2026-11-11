@@ -53,6 +53,8 @@ export const config = {
   baiduPushEnabled: bool("BAIDU_PUSH_ENABLED", false),
   /** The token in Baidu's push address (搜索资源平台 · 普通收录 · API提交) for SITE_URL; a secret. */
   baiduPushToken: env.BAIDU_PUSH_TOKEN || null,
+  /** Where the token and URLs are POSTed; must be https (the fork refuses a clear-text endpoint). */
+  baiduPushEndpoint: env.BAIDU_PUSH_ENDPOINT || "http://data.zz.baidu.com/urls",
   /** Optional directory of per-group dotenv files (models.env, collectors.env, …); normally everything is in .env. */
   credentialsDir: credentialsDir ? path.resolve(REPO_ROOT, credentialsDir) : null,
   dataDir: str("AIHOT_DATA_DIR", path.join(REPO_ROOT, ".data")),
