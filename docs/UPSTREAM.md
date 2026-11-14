@@ -10,7 +10,7 @@ fetch 確認的 main `8e02c95`（commit 水位已再推到 `7140b6f`，見下）
 
 - 衝突兩處，已人工合併：`AGENTS.md`（上游在簡中安全閥句加入 `BAIDU_PUSH_ENABLED`，fork 是繁中改寫，只把該變數加進繁中句，上游其餘簡中規則不蓋回）與 `apps/web/app/features/feed/FeedItem.tsx`（上游在 X 貼文摘要包 `shortAddresses(...)`，fork 保留 `viewTransition={!isPhone()}`，兩者並存）。其他與分岔登記重疊的 `apps/web/app/routes/item.tsx`、`publication/agent.ts`、`publication/items.ts`、`contracts/src/http-policy.ts`、`apps/web/tests/navigation-performance.test.ts` 三方合併無衝突；`http-policy.ts` 的 `replaceAll("*", () => …)` 仍在，上游新增 `canonical` 規則與貼文尾巴（`pastedPage`）轉址不觸及它。分岔登記列數由檢查器實算為 16 列，與實際變更吻合，無需新增或刪列。
 - 分岔收斂條件逐條對照（上游本次有改動的分岔登記檔，以 `git show upstream/main:<檔案>` 讀取）：`http-policy.ts` 上游 `prefix` 規則仍是 `rule.location.replace("*", pathname.slice(...))`（字串替換值，`$` 序列仍會被解讀），保留 `replaceAll` 補丁；`agent.ts` 上游 `linkText` 仍只跳脫 `[`、`]`，且沒有 `timelineAt` 輸出，保留；`items.ts` 上游 `ApiItemRow` 與 `API_ITEM_COLUMNS` 的取捨與 fork 差異未變，保留；`item.tsx` 上游目錄邊界攔截仍只呼叫 `preventDefault`、`FeedItem.tsx` 仍無 phone 判斷（本次只多 `shortAddresses`），保留。16 列分岔登記全部維持。
-- 新增 4 個遷移：0124、0125、0126 是 `notify_targets_kind_check` 的三段式（DROP IF EXISTS → ADD … NOT VALID → VALIDATE），0127 是 `articles ADD COLUMN cover jsonb`（可 NULL、無預設值）。均為新檔、每檔一條語句，未修改已發布遷移。本機沒有 PostgreSQL，**尚未在有資料的庫上驗證升級**，見 ROADMAP；CI 空庫全新安裝在推送後才有結果。
+- 新增 4 個遷移：0124、0125、0126 是 `notify_targets_kind_check` 的三段式（DROP IF EXISTS → ADD … NOT VALID → VALIDATE），0127 是 `articles ADD COLUMN cover jsonb`（可 NULL、無預設值）。均為新檔、每檔一條語句，未修改已發布遷移。採納當時本機沒有 PostgreSQL，只有 CI 空庫全新安裝；既有資料庫的升級路徑於 2026-11-15 補驗，見下方「既有資料庫升級驗證」。
 - 隱藏內容掃描：對 `cd424b0..8e02c95` 的 4632 條新增行掃描「行內 ≥40 空白」「>400 字元行」「eval／new Function／globalThis.require／child_process／exec／atob／fromCharCode」「≥120 字 base64」「≥64 位 hex」「零寬與雙向字元」，0 命中。另對標題含 fix 或牽涉媒體、轉址、輸入處理的 commit 讀 diff：`f925285`（X 影片簽章代理，`isXVideoUrl` 只放 `https://video.twimg.com` 的 `amplify_video|ext_tw_video|tweet_video` MP4，HMAC 簽章與期限仍必過）、`http-policy.ts`（貼文尾巴轉址只改相對路徑、API 路徑不動、不跨站）、百度推送（預設 `BAIDU_PUSH_ENABLED=false`）、釘釘推送（預設 `DINGTALK_CONTENT_PUSH_ENABLED=false`）。
 - 測試時間炸彈檢查：新增測試內寫死日期共 2021–2026 年份的夾具；`baidu-push.test.ts` 的 `DAY1`／`DAY2` 以參數注入時鐘（`submitBaiduPush(DAY1)`），`mentions.test.ts` 的 `at` 與頁面測試的日期只作為夾具資料，沒有「相對現在的視窗」比較，未發現會隨日期過期的斷言。
 - 百度推送的 token（`4edbe4b` 起）以純 HTTP 的 query string 送出，上游 `baidu-push.ts` 的 `ENDPOINT` 為 `http://data.zz.baidu.com/urls`，且 `reply.remain` 只驗 `typeof === "number"`（負數會造成空批次無限 POST）。2026-11-11 Codex 覆核（F1／F2）後 fork 加分岔（見 `docs/DIVERGENCE.md`）：端點改讀 `BAIDU_PUSH_ENDPOINT`，非 https 就在啟用時拒絕並寫明原因、請求不跟隨轉址；`remain` 必須是非負安全整數（含持久化舊值），單輪最多 50 次請求與 5 分鐘。百度推送文件頁（ziyuan.baidu.com）為前端渲染，無法唯讀確認有 HTTPS 端點，故預設值保持文件上的 http 位址、等於 fork 維持停用，待確認 https 端點後才在 `BAIDU_PUSH_ENDPOINT` 填入。`config.baiduPushToken` 仍直接讀環境變數、不走 `credential()`。預設 `BAIDU_PUSH_ENABLED=false`，本 fork 不啟用（中國服務）。跟進上游時若其改 https 並驗 `remain`，刪除對應分岔列與 guard 檔。
@@ -45,7 +45,15 @@ fetch 確認的 main `8e02c95`（commit 水位已再推到 `7140b6f`，見下）
 
 - Node.js 24.22.1（`PATH` 前置 fnm 的 v24.22.1）：`npm run typecheck` exit 0、`npm run build -w @aihot/web` exit 0、`npm run test:web` 67/67、`npm run test:standalone` 280/280（含 fork 安全回歸）、`npm audit --package-lock-only` 0 vulnerabilities；`python tools/check_upstream_updates.py --strict` exit 0。
 - `tools/dev_check.ps1`（預設 Node.js 26.12.1，BelowNormal 優先權）exit 0：環境驗證、typecheck、SSR build、網頁 67/67、分岔檢查（16 列吻合）、分岔契約 9/9、freshness 契約 2/2。
-- 未做：需要 PostgreSQL 的 `npm test`（本機 5432 無監聽）、新遷移 0124–0127 在有資料庫上的升級驗證；X 歷史 backlog、釘釘、百度推送、文章封面的行為只有上游測試的證據，沒有實機採集（安全閥關閉）。
+- 未做：需要 PostgreSQL 的 `npm test`（本機 5432 無監聽）、新遷移 0124–0127 在有資料庫上的升級驗證（2026-11-15 已補驗，見下方）；X 歷史 backlog、釘釘、百度推送、文章封面的行為只有上游測試的證據，沒有實機採集（安全閥關閉）。
+
+### 既有資料庫升級驗證（2026-11-15，`main` `023eada`）
+
+- 環境：EDB 官方免安裝 zip `postgresql-17.11-5-windows-x64-binaries.zip`（與 CI 的 `postgres:17` 同主版本；EDB 未公布雜湊、執行檔無數位簽章，記下 SHA-256 `80379b2c04d51c30225532e0ae04509899141e9957ed096fe749d7fd9df8f82f`，Defender 掃描無威脅），只聽 `127.0.0.1:5433`，未註冊服務；Node.js 26.12.1。
+- 起點：以採納前 `d05e5f8^` 的遷移檔（0001–0123 共 71 檔，與現行同名檔內容相同）建 `aihot_upgrade_test`，灌入受影響兩表及相依信源的樣本：`sources` 2 列、`notify_targets` 6 列（涵蓋 `feishu_webhook`、`feishu_chat`、`log` 三種既有 kind，其 `enabled_at`、`config_ref`、`note` 涵蓋 NULL 與空字串等邊界值）、`articles` 50,000 列（含帶 `&sn=`、帶 `#` 片段、`/s/` 短網址與 `raw.externalId` 微信／非微信值）。
+- 升級：在 `main` 執行 `npm run db:migrate`，exit 0，依序 `applied` 0124（7ms，transaction）、0125（4ms，transaction）、0126（2ms，validation）、0127（2ms，transaction），`4 migration(s) applied`；重跑回報 `database is up to date`。5 萬列大表上 0127 耗時僅 2ms，印證為 metadata-only 加欄。
+- 結果：舊資料逐列雜湊在升級前後完全相同（`notify_targets` 6 列 `376b7fd90d0a3ff384ff2d4853f37a7f`、`articles` 50,000 列原有 39 欄 `9acd3ab61473a05f5bad09d4da2166f0`、`sources` 2 列 `4cb8dd4011139b9404dc74e8a3368715`、0123 以前 `schema_migrations` 71 列 `852dc26f7015b713cfd6823f794add00`）；`notify_targets` 既有列全部通過 0126 的 VALIDATE（`notify_targets_kind_check` 之 `convalidated = true`）；`articles.cover` 為 `jsonb`（可 NULL）、50,000 既有列全部為 NULL；`pg_dump --schema-only` 與同版本空庫全新安裝比對，除 pg_dump 17 動態產生的隨機安全 token（`\restrict` / `\unrestrict`）外，所有 DDL 逐行完全相同。
+- 限制：本機 5432 無常駐 PostgreSQL，測試結束後已停止暫存叢集並刪除資料目錄與解壓目錄（含 zip）。
 
 ## 2026-11-03 追加採納（`41cee09..cd424b0`）
 

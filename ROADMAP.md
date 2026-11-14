@@ -13,7 +13,6 @@
 ## 近期：可以直接動手
 | 項目 | 為什麼 | 驗收方式 | 建議執行者 | 證據 |
 | --- | --- | --- | --- | --- |
-| 在有資料的庫上驗證 4 個新遷移（0124–0127）的升級路徑 | 2026-11-10 採納 `cd424b0..7140b6f` 帶入 0124、0125、0126（`notify_targets_kind_check` 三段式）與 0127（`articles.cover jsonb`）；本機 5432 無 PostgreSQL，只有 CI 空庫全新安裝能驗；0127 對大表是 metadata-only 加欄 | 沿用 [docs/UPSTREAM.md](docs/UPSTREAM.md)「既有資料庫升級驗證」做法：0089 起點庫灌樣本，`npm run db:migrate` 套到 0127，確認舊資料雜湊不變、`notify_targets` 既有列通過 VALIDATE、升級後 schema 與全新安裝相同，結果補進該節 | Claude Opus | [database/migrations/0124_notify_targets_kind_drop_check.sql](database/migrations/0124_notify_targets_kind_drop_check.sql)、[0127_article_cover.sql](database/migrations/0127_article_cover.sql) |
 
 ## 中期：等條件成立再做
 | 項目 | 觸發條件 | 驗收方式 | 建議執行者 | 證據 |
