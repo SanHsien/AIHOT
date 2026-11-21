@@ -13,12 +13,12 @@
 ## 近期：可以直接動手
 | 項目 | 為什麼 | 驗收方式 | 建議執行者 | 證據 |
 | --- | --- | --- | --- | --- |
+| 採納上游 PR #375（事件歸組狀態一致性、批量召回、連續合併解析） | 觸發條件已成立（2026-11-21 查：上游 PR #375 已於 2026-11-10 合併（`gh pr view 375 -R KKKKhazix/AIHOT`），合併 commit `bb9a507` 仍在 `python tools/check_upstream_updates.py --strict` 的未審清單（73 個 commit，exit 1））。原條件：PR 在上游合併，或 head 由 `c03474f` 改變（`tools/upstream_baseline.json` 的 `monitored` 會在 `--strict` 報出） | 讀合併後 diff，有 PostgreSQL 時跑 `tests/events.test.ts`、`signals.test.ts`、`embedding-dimensions.test.ts`；記 [docs/UPSTREAM.md](docs/UPSTREAM.md) | Claude Opus | [docs/UPSTREAM.md](docs/UPSTREAM.md)「2026-11-10 整樹採納」 |
 
 ## 中期：等條件成立再做
 | 項目 | 觸發條件 | 驗收方式 | 建議執行者 | 證據 |
 | --- | --- | --- | --- | --- |
 | 建立自訂行業站與選文校準 | 維護者確認品牌、信源、條款與標註樣本 | 依 customize 與 selection 文件完成設定、跑標註評測與本機 smoke；開啟外部採集及付費模型前確認預算 | 維護者 | [AGENTS.md:20](AGENTS.md)、[AGENTS.md:22](AGENTS.md)、[README.md:94](README.md) |
-| 採納上游 PR #375（事件歸組狀態一致性、批量召回、連續合併解析） | PR 在上游合併，或 head 由 `c03474f` 改變（`tools/upstream_baseline.json` 的 `monitored` 會在 `--strict` 報出） | 讀合併後 diff，有 PostgreSQL 時跑 `tests/events.test.ts`、`signals.test.ts`、`embedding-dimensions.test.ts`；記 [docs/UPSTREAM.md](docs/UPSTREAM.md) | Claude Opus | [docs/UPSTREAM.md](docs/UPSTREAM.md)「2026-11-10 整樹採納」 |
 | 收斂上游已修好的 fork 補丁 | 上游修改對應安全或導航檔案 | 比較分岔行為，等效修正才刪 fork 補丁與登記列；相關回歸及 `python tools/check_divergence.py` 通過 | Codex | [docs/DECISIONS.md:63](docs/DECISIONS.md)、[AGENTS.md:12](AGENTS.md) |
 
 ## 刻意不做
