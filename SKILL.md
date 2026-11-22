@@ -33,7 +33,7 @@ description: 維護 SanHsien/AIHOT：自動化行業熱點彙整與日報系統�
 - `apps/worker/`：pg-boss 背景工作排程器（抓取、打分、成刊）。
 - `packages/contracts/`：前後端共享資料合約與型別定義。
 - `packages/backend/`：後端共享領域邏輯與資料庫存取層。
-- `industry/`：行業客製化（提示詞、分類、信源、門檻、品牌）。
+- `industry/`：行業客製化（提示詞、分類、信源、門檻）；品牌與 Logo 在 `site/brand/`。
 - `tools/check_divergence.py`：上游分岔登記比對工具。
 - `docs/DIVERGENCE.md`：分岔檔案登記表。
 - `docs/DEVELOPMENT.md`：本地開發與部署文件。
@@ -45,6 +45,7 @@ description: 維護 SanHsien/AIHOT：自動化行業熱點彙整與日報系統�
 ```bash
 npm run typecheck
 npm run build -w @aihot/web
-node --test apps/web/tests/*.test.ts
+npm run test:web
 python tools/check_divergence.py
+python tests/test_fork_divergence.py
 ```
