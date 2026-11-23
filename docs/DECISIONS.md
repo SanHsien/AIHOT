@@ -62,3 +62,10 @@
    - **測試碼（used in tests）**：#35、#36、#37 `js/reflected-xss` 是測試裡綁 `127.0.0.1` 的假伺服器；#45 `js/server-side-unvalidated-url-redirection` 是故意做轉址的測試假伺服器；#39、#40 是對固定 HTML 的斷言；#48–#54 `js/regex/missing-regexp-anchor` 是對已知輸出做 `assert.match`。都不處理外部輸入。
    - **重審條件**：新告警逐筆判讀；上游改了上述檔案時，對照分岔列決定刪列或保留。
    - **理由**：「上游程式不改」會把真缺陷（#13、#15、限流重置）一起放著；每項修正都小且附回歸測試，分岔表寫明上游修好就刪。
+
+10. **GitHub 以 Actions 用量過大停用本 fork 的 Actions（2026-11-23）；push 觸發改為只跑會影響結果的變更**
+   - **量測**：近 30 天（10-27..11-22）`gh run list` 前 100 筆：Check 25 次 push、Fork Quality & Divergence Check 25 次 push、CodeQL 26 次 push（每次 2 個語言 job）；排程本來就是每週／每月（CodeQL、Upstream check 週一，Dependency freshness 每月 1 日），不是主要來源。用量全在每次 push 都跑三個 workflow。
+   - **現行決定**：`check.yml`、`fork-check.yml` 的 push 觸發對只改維護紀錄的提交（`ROADMAP.md`、`REVIEW.md`、`FORK.md`、`NOTICE.md`、兩份報告、`docs/UPSTREAM.md`、`docs/DECISIONS.md`、`tools/upstream_baseline.json`）略過；`codeql.yml` 的 push 只在 JS/TS/Python 原始碼或該 workflow 改動時跑。三者的 pull_request 與 CodeQL 每週排程不加篩選，所有改動仍至少每週掃一次。`docs/DIVERGENCE.md` 刻意不略過（`check_divergence.py` 讀它）。
+   - **預估**：push 觸發的 run 數約減少一半以上（多數提交是紀錄類）；沒有刪任何檢查。
+   - **還原**：移除上述 `paths-ignore`／`paths` 區塊即回到每次 push 全跑。
+   - **重審條件**：Actions 重新啟用後再用 `gh run list` 量一次，仍被限制再降頻。

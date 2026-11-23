@@ -1,8 +1,20 @@
 name: Fork Quality & Divergence Check
 
 on:
+  # Fork patch (docs/DECISIONS.md 2026-11-23, Actions usage): pushes skip changes that only touch
+  # fork notes and records. Pull requests stay unfiltered so required checks never stick pending.
   push:
     branches: [main]
+    paths-ignore:
+      - "ROADMAP.md"
+      - "REVIEW.md"
+      - "FORK.md"
+      - "NOTICE.md"
+      - "upstream-review-report.md"
+      - "dependency-freshness-report.md"
+      - "docs/UPSTREAM.md"
+      - "docs/DECISIONS.md"
+      - "tools/upstream_baseline.json"
   pull_request:
   workflow_dispatch:
 
