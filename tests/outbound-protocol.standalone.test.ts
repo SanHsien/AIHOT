@@ -68,9 +68,13 @@ for (const route of ["direct", "proxy", "secure-proxy", "dns"] as const) {
       const connect = tls.connect;
       tls.connect = function(options, ...rest) {
         if (options.host === '93.184.216.34') options = { ...options, host: '127.0.0.1', port: origin.address().port };
+        // The secure proxy has a DNS certificate name too: Node 26 rejects an IP literal as SNI.
+        if (route === 'secure-proxy' && options.host === 'outbound.invalid' && Number(options.port) === proxy.address().port) {
+          options = { ...options, host: '127.0.0.1' };
+        }
         return connect.call(this, options, ...rest);
       };
-      const proxyUrl = (route === 'secure-proxy' ? 'https' : 'http') + '://127.0.0.1:' + proxy.address().port;
+      const proxyUrl = (route === 'secure-proxy' ? 'https://outbound.invalid:' : 'http://127.0.0.1:') + proxy.address().port;
       let error = null, agent;
       try {
         if (route === 'direct') {

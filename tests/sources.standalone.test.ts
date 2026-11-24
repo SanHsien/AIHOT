@@ -58,6 +58,14 @@ const pages: Record<string, () => string> = {
   "/large/post": () => article("LFM3", `Benchmarks for the new models. ${"Each row compares the same task. ".repeat(12)}</p><table><tr><th>Benchmark</th><th>LFM3</th></tr><tr><td><p>LiveClaw</p></td><td><p>45.60</p></td></tr></table><p>`)
     .replace("</body>", `<script>${"x".repeat(9 * 1024 * 1024)}</script></body>`),
   "/en/items.json": () => JSON.stringify([{ title: "Improved token efficiency", url: `${site}/en/post` }]),
+  // A search API that answers 200 with a failure envelope: the reason is in message, and data is empty.
+  "/error-envelope.json": () => JSON.stringify({ code: "200", success: false, message: "缺少必填参数", data: {} }),
+  // The same failure under a field name no convention covers: the keys still show where the reason is.
+  "/odd-envelope.json": () => JSON.stringify({ code: 500, errmsg: "参数错误", result: {} }),
+  // A null layer has no keys; diagnostics must still report the upstream's reason.
+  "/null-envelope.json": () => JSON.stringify({ code: 1, msg: "token 已过期", data: null }),
+  // An items path that points at an object, not an array.
+  "/object-items.json": () => JSON.stringify({ total: 2, rows: [{ title: "A" }], items: { a: 1, b: 2 } }),
 };
 function article(title: string, text: string) {
   return `<html><head><title>${title}</title><meta property="article:published_time" content="2026-09-23T12:00:00Z"></head><body><article><h1>${title}</h1><p>${text}</p></article></body></html>`;
@@ -296,4 +304,16 @@ test("a source's language is an Accept-Language value, refused by kinds that rea
     }
   }
   for (const kind of ["x_search", "mp_account", "external"] as const) assert.deepEqual(unsupportedConfig(kind, { acceptLanguage: "en" }), ["acceptLanguage"], kind);
+});
+
+test("an items path that is not an array names the layer it stopped at, that layer's keys, and the API's reason", async () => {
+  const items = (path: string, file: string) => fetchJsonList({ id: "test-json", config: { url: `${site}/${file}`, itemsPath: path, titlePaths: ["title"], urlTemplate: "{raw:url}" } } as never);
+  await assert.rejects(items("data.items", "error-envelope.json"),
+    /items path data\.items did not resolve to an array: found nothing at data \(keys: none\); upstream said: 缺少必填参数/);
+  await assert.rejects(items("data.rows", "odd-envelope.json"),
+    /found nothing at \(root\) \(keys: code, errmsg, result\)/, "a reason under an uncommon field is still visible as a key");
+  await assert.rejects(items("items", "object-items.json"),
+    /found an object with keys a, b/);
+  await assert.rejects(items("data.items", "null-envelope.json"),
+    /items path data\.items did not resolve to an array: found nothing at data \(null\); upstream said: token 已过期/);
 });

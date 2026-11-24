@@ -1,8 +1,61 @@
 # 上游審查紀錄
 
-最後審查：2026-11-10（commit 水位 `7140b6f`，PR 水位 #383、issue 水位 #340；追蹤中的 open PR：#375）
+最後審查：2026-11-25（commit 水位 `bc57d79`；本輪 103 筆為 6 adopt／85 defer／12 reject；PR／issue 庫存水位仍為 #383／#340，PR #375 已合併、從 open 追蹤移除，採納仍延後）。
 
 本檔只記可執行結論。機器水位與 open PR head SHA 放在 [`tools/upstream_baseline.json`](../tools/upstream_baseline.json)。相同 SHA、狀態與庫存不重審；任一項變動才重新評估。
+
+## 2026-11-25：固定範圍 103 筆審查（`7140b6f..bc57d79`）
+
+接續 `67116b6`。文件授權阻礙已解除；已核對 Git 範圍含 103 個唯一 commit，逐筆檢查變更路徑、主要行為、測試與相依；裁決及原始 URL 全部列於 [DECISIONS.md](DECISIONS.md#2026-11-25上游-103-筆逐項裁決)。採納 6、延後 85、拒絕 12，沒有尚未分類的項目。延後觸發條件只列 [ROADMAP.md](../ROADMAP.md) G1–G10。本輪是採納決策審查；延後包沒有完成逐行安全稽核、整合或 runtime 驗證，不能拿本輪 gate 宣稱它們可上線。
+
+```text
+7140b6f（既有整合底）
+  + 既有 fork 補丁
+  + A1 代理 DNS 修正（4 commits）
+  + A2 JSON 診斷修正（2 commits）
+  = 本輪產品樹
+bc57d79 = 已審查水位；其餘延後／拒絕未套用
+```
+
+### 採納與缺陷修復紀錄（2026-11-25）
+
+| 組別 | 上游 commit | 修正／驗收 | fork 修復 commit |
+|---|---|---|---|
+| A1 | [a3e4349](https://github.com/KKKKhazix/AIHOT/commit/a3e4349)、[fe9be05](https://github.com/KKKKhazix/AIHOT/commit/fe9be05)、[23d3882](https://github.com/KKKKhazix/AIHOT/commit/23d3882)、[700f7c7](https://github.com/KKKKhazix/AIHOT/commit/700f7c7) | DoH 備援與顯式 hostname CONNECT；預設仍釘公網 IP，範例明載停用的 DNS 重綁風險。A／AAAA 任一回內網即拒絕，不能因另一查詢失敗切到公網備援。6 項本機代理回歸及 5 項 TLS／HTTP 協定回歸通過。測試及警示與功能同套計數，不宣稱純註解有獨立行為回歸。 | 待提交後回註 |
+| A2 | [16c433f](https://github.com/KKKKhazix/AIHOT/commit/16c433f)、[1dcf1db](https://github.com/KKKKhazix/AIHOT/commit/1dcf1db) | itemsPath 錯誤顯示實際層級、鍵名及有界上游理由；null／純量不會使診斷本身丟 TypeError。保留現行擷取行為，只移植產品及對應測試，未覆蓋其他新版來源測試或文件。16 項信源 standalone 通過。 | 待提交後回註 |
+
+### 修前失敗與修後通過
+
+所有請求只進本機 fake 服務，不開外部採集、模型或通知。證據暫存本工作樹 `node_modules/.cache/upstream-review/`（ignored；重現方式及 exit code 如下，不依賴暫存檔可下載）。
+
+- `node --import ./tests/standalone.ts --test --test-timeout=30000 tests/egress-proxy.standalone.test.ts tests/sources.standalone.test.ts`：先只加入新的 egress 測試、產品維持 `67116b6`，exit 1（hostname CONNECT、備援、內網拒絕回歸失敗）；套 A1 及初版 A2 後，同兩檔測試 exit 0，22/22。
+- `node --import ./tests/standalone.ts --test --test-name-pattern='an internal answer still ends' tests/egress-proxy.standalone.test.ts`：在 a3e4349 及 23d3882 基礎、暫時反向還原 700f7c7 的產品 hunk，exit 1（測試未得到預期拒絕，已被另一 DNS 答案放行）；恢復 700f7c7 後全檔 exit 0，6/6。
+- `node --import ./tests/standalone.ts --test --test-name-pattern='an items path that is not an array' tests/sources.standalone.test.ts`：只加 16c433f 測試時 exit 1（只有舊泛用錯誤）；套診斷後 exit 0。再加入 null 包體、保留 16c433f 產品時 exit 1（Object.keys(null) 的 TypeError）；套 1dcf1db 後全檔 exit 0，16/16。
+- 這是同批採納的連續修前／修後驗證；fe9be05 的測試與 23d3882 的警示屬 A1 的必要配套，不把「加註解」另當產品缺陷。未從上游整檔覆蓋現有測試。
+
+### 分岔、安全與範圍
+
+- `reviewed_through` 推進至 bc57d79 僅表示裁決完成；`review_batch.integration_base` 保留 7140b6f，並保留 103 筆完整 SHA 分類。`DIVERGENCE.md` 登記未整合差異及既有 fork 補丁，不能因新增多列就聲稱全樹已合併。下次即使 behind 為 0，也必須依 ROADMAP 處理本批延後項，不能把它們遺忘。
+- #375 合併產物 bb9a507 在本輪範圍內，鎖序後續由 863bc1a、45ebf34、69a9d5f 修訂。只保留最終方案為 G1 延後，不照舊 open head 重審；需要 PostgreSQL 的原子性、長鏈及大批向量回歸尚未執行。本輪環境沒有設定 DATABASE_URL，未為不採納的整包建新資料庫。
+- 所有新增行的靜態掃描涵蓋 103 筆：未命中零寬／雙向字元、120 字以上 base64 或 40 空白夾載內容；執行 API 相關 12 處命中是工作 birth 檢查與測試 subprocess／債務掃描工具，均未移植或執行。不把未命中當成完整安全證明。
+- 保留 Markdown 反斜線跳脫、HTTP 字串替換、全站登入限流、timelineAt、WebKit 導覽／outline 與百度 HTTPS／有界請求補丁；延後批次碰到這些檔案仍須逐項重驗。408d112／d342846 的四個解析套件版本已與 fork 相同，僅拒絕重複修改。
+- 未修改 workflow，保留 713caec 的 push 篩選；未 push、未開 PR、未切換分支或修改其他工作樹。PR／issue／branch／tag／release 庫存未另外更新，舊日期記錄仍是歷史快照；本輪範圍固定為使用者指定 103 個 commit，不宣稱上游現在沒有其他更新。
+
+### 交付驗證
+
+完整 gate 初跑 exit 0（typecheck、SSR build、網頁 67/67、分岔契約 9/9、freshness 契約 2/2）。standalone 初跑 exit 1，291 項中 290 過、1 項 secure-proxy 失敗；聚焦診斷在本輪產品、以及僅將 egress-proxy.ts 暫時還原至 67116b6 的對照組，都得到 `ERR_INVALID_ARG_VALUE: options.servername`，Node.js 26 不接受 IP SNI。這不是本輪產品回歸：同一夾具用 DNS 名稱連到本機、保留憑證與 SNI 驗證後，`node --import ./tests/standalone.ts --test tests/outbound-protocol.standalone.test.ts` exit 0，5/5。依有界驗證規則只重跑失敗檔，不重跑其餘已過的 290 項；不宣稱最初 standalone 命令 exit 0。後續測試程序的 TEMP／TMP 明確指向工作樹內的 ignored 暫存目錄。TLS 夾具新增分岔已登記。最終 `pwsh -NoProfile -File tools/dev_check.ps1` exit 0：typecheck、SSR build、網頁 67/67、352 路徑分岔登記、分岔契約 9/9、freshness 契約 2/2。
+
+不啟動網站、不做 production／外部服務驗證。修復 commit 會在第一次產品提交後於本節回註，REVIEW.md 不在本輪允許修改範圍，本節兼作這次缺陷修復的 review 紀錄。
+
+### 收尾自查（damage-report；僅自審）
+
+1. 原問題：103 個唯一 commit 都有裁決與 URL，未分類為 0；審查水位與產品整合底分開記錄。
+2. 驗證：兩組修正有修前失敗／修後通過；完整 gate 及 failed TLS 檔結果如上。延後包沒有資料庫、真實採集或上線驗證。
+3. 新風險：顯式停用 DNS pinning 後代理會再解析；預設仍啟用，環境範例已說明限制。沒有改既有安全閥或付費入口。
+4. 一致性：逐筆分類、水位、分岔及 ROADMAP 對帳；修前／修後證據不把被撤回的中間版本當採納。未改 workflow。
+5. 使用者影響：交付在目前工作分支，未部署或 push；新的錯誤診斷及代理選項已寫在本紀錄與 .env.example，無其他使用方需外發通知。
+
+還能怎麼優化：本輪無需追加；後續僅依 ROADMAP 已列觸發條件整合延後項，避免盲目整樹覆蓋。
 
 ## 2026-11-10 整樹採納（`cd424b0..7140b6f`）
 
