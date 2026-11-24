@@ -6,6 +6,8 @@
 
 ## 決策清單
 
+- **2026-11-25 上游巡檢受阻，未作採納判斷**：目標為 [7140b6f..bc57d79（103 commits）](https://github.com/KKKKhazix/AIHOT/compare/7140b6f6f5a336fbd5668021c5ada750c7333ff2...bc57d793fb4d3e35fbe908d59514664b3539b0e7)；本次允許清單未含 `docs/DIVERGENCE.md`，亦未含專案流程要求的 `docs/UPSTREAM.md`。以目前產品樹試算新水位會有 354 個分岔路徑（原登記 23 個，缺 332 個、失效 1 個）；不能只推水位，也不能將未套用的上游變更冒充採納。保留 `reviewed_through=7140b6f`，採納／延後／拒絕均為 0，103 筆仍未逐筆審查；後續工作只列於 `ROADMAP.md`。保留 `713caec` 的 Actions push 觸發限制；本次只在工作分支提交、不 push。
+
 1. **以繁體中文作為主入口文件語言（`README.md`、`AGENTS.md`、`docs/*.md`）**
    - **現行決定**：核心文件全面採用繁體中文，上游原版英文/簡中鏡像完整保留在 `README.en.md`。
    - **理由**：符合本機主要維護者溝通習慣，並便於台灣業界與個人熱點站落地。

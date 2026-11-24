@@ -4,6 +4,8 @@
 > 現況段的數字是 2026-10-29 依 `main` `94a3df150d2b` 查的快照，開工前先重查 GitHub。
 
 ## 現況
+2026-11-25：工作分支 `codex/upstream-1124` 起點 `713caec`；本機已有上游目標 `bc57d793fb4d3e35fbe908d59514664b3539b0e7`，距審查水位 `7140b6f6f5a336fbd5668021c5ada750c7333ff2` 共 103 筆。巡檢受檔案修改範圍阻擋：未允許更新分岔登記與專案上游紀錄；103 筆尚未逐筆審查，水位不變（[決策與試算證據](docs/DECISIONS.md)）。以本工作樹鎖檔執行 `npm ci`，補齊前次缺少的專案依賴；Node.js 26.12.1 下 `pwsh -NoProfile -File tools/dev_check.ps1` exit 0（typecheck、SSR build、網頁 67/67、分岔契約 9/9、依賴檢查器 2/2）。這是既有產品的 gate 證據，不代表上游審查完成。
+
 這是以信源採集、模型精選與自動成刊為核心的行業網站框架 fork（[AGENTS.md:3](AGENTS.md)）。2026-10-29 `gh` 查詢記錄各主要 workflow 最近結果成功；2026-11-08 重查 Dependabot 與 Code scanning open 告警各 0；issues 停用，未查到 issue（2026-10-29 `gh` 查詢）。安全修正與 CI 分岔檢查已有驗證，REVIEW 驗證證據表已校正；上游審查文件已對齊現行安全與導航分岔，closed PR 依實際缺陷與分岔變動重審（[docs/UPSTREAM.md](docs/UPSTREAM.md)）。Agent 輸出已支援站內時間（`timelineAt`）並附時間過濾提示，V1 契約與回歸測試已補齊。
 
 2026-11-03：以 `92d91d7` 為起點整樹採納上游 `79d962e..41cee09`（48 個 commit、7 個新增遷移），保留已登記安全、導航與站內時間分岔；其後追加採納 #323 合併的 `dcb366e`、`cd424b0`（Menu 鍵盤導航）；commit 水位為完整 `cd424b0a513c7c8535b6f291b106a3086d6b75bf`，PR 水位 #332，無追蹤中的 open PR。Node.js 24.22.1 的完整本機閘門通過（`27ced027`：網頁 65/65、standalone 249/249、分岔契約 9/9；追加採納 `cd424b0` 後 `dev_check` 網頁 67/67、分岔契約 9/9），上游 `--strict` exit 0；本機無可用 `_test`／`_ci` PostgreSQL（5432 無監聽）。2026-11-03 `27ced027` 推送後的 [check.yml run 41619101964](https://github.com/SanHsien/AIHOT/actions/runs/41619101964)：`check`、`docker` 兩個 job 均成功，該 job 的 PostgreSQL 是空庫（`aihot_ci`），驗到的是全新安裝。2026-11-09 以 PostgreSQL 17.11 在有資料的 0089 庫上驗證 7 個遷移（0090、0091、0092、0105、0121、0122、0123）的升級路徑：全部套用、原有資料雜湊不變、升級後 schema 與全新安裝相同（[docs/UPSTREAM.md](docs/UPSTREAM.md)「既有資料庫升級驗證」）。
@@ -18,6 +20,7 @@
 ## 中期：等條件成立再做
 | 項目 | 觸發條件 | 驗收方式 | 建議執行者 | 證據 |
 | --- | --- | --- | --- | --- |
+| 續審上游 `7140b6f..bc57d79` 全部 103 筆 | 觸發條件：允許同步修改 `docs/DIVERGENCE.md` 與 `docs/UPSTREAM.md`；目前尚未逐筆分類，不將阻礙算成 defer | 逐筆記錄採納／延後與觸發條件／拒絕理由；每項採納有修改前失敗、修改後通過的測試；完整 gate exit 0 才推進水位；保留 `713caec` 限制 | Codex | [docs/DECISIONS.md](docs/DECISIONS.md) 2026-11-25 受阻紀錄 |
 | 建立自訂行業站與選文校準 | 維護者確認品牌、信源、條款與標註樣本 | 依 customize 與 selection 文件完成設定、跑標註評測與本機 smoke；開啟外部採集及付費模型前確認預算 | 維護者 | [AGENTS.md:20](AGENTS.md)、[AGENTS.md:22](AGENTS.md)、[README.md:94](README.md) |
 | 收斂上游已修好的 fork 補丁 | 上游修改對應安全或導航檔案 | 比較分岔行為，等效修正才刪 fork 補丁與登記列；相關回歸及 `python tools/check_divergence.py` 通過 | Codex | [docs/DECISIONS.md:63](docs/DECISIONS.md)、[AGENTS.md:12](AGENTS.md) |
 
