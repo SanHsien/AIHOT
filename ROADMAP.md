@@ -4,7 +4,7 @@
 > 現況段的數字是 2026-10-29 依 `main` `94a3df150d2b` 查的快照，開工前先重查 GitHub。
 
 ## 現況
-2026-11-25：從工作分支 `codex/upstream-1124` 的 `67116b6` 接續，已逐筆審完上游 `7140b6f..bc57d79` 全部 103 筆：採納 6、延後 85、拒絕 12。審查水位為 `bc57d793fb4d3e35fbe908d59514664b3539b0e7`，不是整樹整合水位；產品仍以 `7140b6f` 加既有 fork 補丁與本輪兩組修正為準。DNS 備援／內網拒絕及 JSON 診斷共 22 項本機測試通過，修前失敗證據見 [docs/UPSTREAM.md](docs/UPSTREAM.md)。完整 `pwsh -NoProfile -File tools/dev_check.ps1` exit 0（網頁 67/67、分岔 352/352、契約 9/9 及 2/2）；standalone 初跑 290/291，唯一失敗是 Node.js 26 的 IP SNI 夾具，修後只重跑該檔 5/5 通過。只提交目前分支，不 push；`713caec` 的 Actions 觸發限制保留。
+2026-11-25：工作分支 `codex/upstream-1124` 已提交修復 `42bf1c9`（接續 `67116b6`），已逐筆審完上游 `7140b6f..bc57d79` 全部 103 筆：採納 6、延後 85、拒絕 12。審查水位為 `bc57d793fb4d3e35fbe908d59514664b3539b0e7`，不是整樹整合水位；產品仍以 `7140b6f` 加既有 fork 補丁與本輪兩組修正為準。DNS 備援／內網拒絕及 JSON 診斷共 22 項本機測試通過，修前失敗證據見 [docs/UPSTREAM.md](docs/UPSTREAM.md)。完整 `pwsh -NoProfile -File tools/dev_check.ps1` exit 0（網頁 67/67、分岔 352/352、契約 9/9 及 2/2）；standalone 初跑 290/291，唯一失敗是 Node.js 26 的 IP SNI 夾具，修後只重跑該檔 5/5 通過。只提交目前分支，不 push；`713caec` 的 Actions 觸發限制保留。
 
 這是以信源採集、模型精選與自動成刊為核心的行業網站框架 fork（[AGENTS.md:3](AGENTS.md)）。2026-10-29 `gh` 查詢記錄各主要 workflow 最近結果成功；2026-11-08 重查 Dependabot 與 Code scanning open 告警各 0；issues 停用，未查到 issue（2026-10-29 `gh` 查詢）。安全修正與 CI 分岔檢查已有驗證，REVIEW 驗證證據表已校正；上游審查文件已對齊現行安全與導航分岔，closed PR 依實際缺陷與分岔變動重審（[docs/UPSTREAM.md](docs/UPSTREAM.md)）。Agent 輸出已支援站內時間（`timelineAt`）並附時間過濾提示，V1 契約與回歸測試已補齊。
 

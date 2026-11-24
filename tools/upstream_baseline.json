@@ -134,6 +134,7 @@
       "42e990fad199f640fcf5d457acb6f2b6ba711b01"
     ],
     "decisions": "docs/DECISIONS.md",
-    "deferred_triggers": "ROADMAP.md"
+    "deferred_triggers": "ROADMAP.md",
+    "fork_fix_commit": "42bf1c9fa8445f6ae6301cb041f62511a435aa7a"
   }
 }

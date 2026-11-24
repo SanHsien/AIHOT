@@ -21,8 +21,8 @@ bc57d79 = 已審查水位；其餘延後／拒絕未套用
 
 | 組別 | 上游 commit | 修正／驗收 | fork 修復 commit |
 |---|---|---|---|
-| A1 | [a3e4349](https://github.com/KKKKhazix/AIHOT/commit/a3e4349)、[fe9be05](https://github.com/KKKKhazix/AIHOT/commit/fe9be05)、[23d3882](https://github.com/KKKKhazix/AIHOT/commit/23d3882)、[700f7c7](https://github.com/KKKKhazix/AIHOT/commit/700f7c7) | DoH 備援與顯式 hostname CONNECT；預設仍釘公網 IP，範例明載停用的 DNS 重綁風險。A／AAAA 任一回內網即拒絕，不能因另一查詢失敗切到公網備援。6 項本機代理回歸及 5 項 TLS／HTTP 協定回歸通過。測試及警示與功能同套計數，不宣稱純註解有獨立行為回歸。 | 待提交後回註 |
-| A2 | [16c433f](https://github.com/KKKKhazix/AIHOT/commit/16c433f)、[1dcf1db](https://github.com/KKKKhazix/AIHOT/commit/1dcf1db) | itemsPath 錯誤顯示實際層級、鍵名及有界上游理由；null／純量不會使診斷本身丟 TypeError。保留現行擷取行為，只移植產品及對應測試，未覆蓋其他新版來源測試或文件。16 項信源 standalone 通過。 | 待提交後回註 |
+| A1 | [a3e4349](https://github.com/KKKKhazix/AIHOT/commit/a3e4349)、[fe9be05](https://github.com/KKKKhazix/AIHOT/commit/fe9be05)、[23d3882](https://github.com/KKKKhazix/AIHOT/commit/23d3882)、[700f7c7](https://github.com/KKKKhazix/AIHOT/commit/700f7c7) | DoH 備援與顯式 hostname CONNECT；預設仍釘公網 IP，範例明載停用的 DNS 重綁風險。A／AAAA 任一回內網即拒絕，不能因另一查詢失敗切到公網備援。6 項本機代理回歸及 5 項 TLS／HTTP 協定回歸通過。測試及警示與功能同套計數，不宣稱純註解有獨立行為回歸。 | `42bf1c9`，2026-11-25 |
+| A2 | [16c433f](https://github.com/KKKKhazix/AIHOT/commit/16c433f)、[1dcf1db](https://github.com/KKKKhazix/AIHOT/commit/1dcf1db) | itemsPath 錯誤顯示實際層級、鍵名及有界上游理由；null／純量不會使診斷本身丟 TypeError。保留現行擷取行為，只移植產品及對應測試，未覆蓋其他新版來源測試或文件。16 項信源 standalone 通過。 | `42bf1c9`，2026-11-25 |
 
 ### 修前失敗與修後通過
 
@@ -45,7 +45,7 @@ bc57d79 = 已審查水位；其餘延後／拒絕未套用
 
 完整 gate 初跑 exit 0（typecheck、SSR build、網頁 67/67、分岔契約 9/9、freshness 契約 2/2）。standalone 初跑 exit 1，291 項中 290 過、1 項 secure-proxy 失敗；聚焦診斷在本輪產品、以及僅將 egress-proxy.ts 暫時還原至 67116b6 的對照組，都得到 `ERR_INVALID_ARG_VALUE: options.servername`，Node.js 26 不接受 IP SNI。這不是本輪產品回歸：同一夾具用 DNS 名稱連到本機、保留憑證與 SNI 驗證後，`node --import ./tests/standalone.ts --test tests/outbound-protocol.standalone.test.ts` exit 0，5/5。依有界驗證規則只重跑失敗檔，不重跑其餘已過的 290 項；不宣稱最初 standalone 命令 exit 0。後續測試程序的 TEMP／TMP 明確指向工作樹內的 ignored 暫存目錄。TLS 夾具新增分岔已登記。最終 `pwsh -NoProfile -File tools/dev_check.ps1` exit 0：typecheck、SSR build、網頁 67/67、352 路徑分岔登記、分岔契約 9/9、freshness 契約 2/2。
 
-不啟動網站、不做 production／外部服務驗證。修復 commit 會在第一次產品提交後於本節回註，REVIEW.md 不在本輪允許修改範圍，本節兼作這次缺陷修復的 review 紀錄。
+不啟動網站、不做 production／外部服務驗證。產品、測試及 TLS 夾具修復 commit 為 `42bf1c9`（2026-11-25），已在上表回註；REVIEW.md 不在本輪允許修改範圍，本節兼作這次缺陷修復的 review 紀錄。
 
 ### 收尾自查（damage-report；僅自審）
 
